@@ -285,14 +285,18 @@ function fail(message) {
 async function main() {
   let index;
   try {
-    index = await getJSON(TABLES + "index.json");
+    const resp = await fetch(TABLES + "index.json", { cache: "no-cache" });
+    // No index means no table has been written yet.
+    if (resp.status === 404) index = { dates: {} };
+    else if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    else index = await resp.json();
   } catch (e) {
     return fail(`Could not load the table index (${e.message}).`);
   }
   const dates = Object.keys(index.dates).sort();
   const date = requested ?? dates.at(-1);
   wireDates(dates, date);
-  if (!date) return fail("No tables yet.");
+  if (!date) return fail("No tables yet. The first one appears after the first daily run.");
   document.title = `MapHub ${date}`;
   if (!index.dates[date]) {
     return fail(`No table for ${date}. arXiv makes no announcement on weekends and holidays, ` +

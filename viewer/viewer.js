@@ -16,6 +16,7 @@ import { parquetReadObjects } from "https://cdn.jsdelivr.net/npm/hyparquet@1.31.
 // Sequential blue ramp, steps 100–700 (light to dark).
 const RAMP = ["#cde2fb", "#b7d3f6", "#9ec5f4", "#86b6ef", "#6da7ec", "#5598e7", "#3987e5",
   "#2a78d6", "#256abf", "#1c5cab", "#184f95", "#104281", "#0d366b"];
+const FIRST_DAY = "1991-08-14"; // arXiv's first day; earlier typed dates are ignored
 const URL_DELAY = 500; // ms of hovering over an arXiv ID before its URL pops up
 const DATACITE = "https://api.datacite.org/dois";
 const DATACITE_FIELDS = "titles,creators,subjects";
@@ -302,7 +303,19 @@ function wireDates(dates, current) {
   input.min = dates[0];
   input.max = dates.at(-1);
   input.value = current ?? "";
-  input.addEventListener("change", () => input.value && go(input.value));
+  // The browser fires "change" on every keystroke once the date is valid (typing
+  // a year passes through 0002, 0020, ...), so typed dates take effect on Enter
+  // or when the field loses focus; dates picked from the calendar at once.
+  let typing = false;
+  const commit = () => {
+    typing = false;
+    const v = input.value;
+    if (v && v !== current && v >= FIRST_DAY) go(v);
+  };
+  input.addEventListener("keydown", (e) => { if (e.key === "Enter") commit(); else typing = true; });
+  input.addEventListener("pointerdown", () => { typing = false; });
+  input.addEventListener("change", () => { if (!typing) commit(); });
+  input.addEventListener("blur", () => { if (typing) commit(); });
   // Prev/next step through the days that have tables.
   const prev = i > 0 ? dates[i - 1] : i < 0 ? dates.filter((d) => d < current).at(-1) : null;
   const next = i >= 0 ? dates[i + 1] : dates.find((d) => d > current);

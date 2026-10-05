@@ -1,0 +1,13 @@
+[
+ {
+  "effective": "2026-10-01",
+  "model": "claude-opus-5-5",
+  "effort": "low",
+  "prompt": "v0",
+  "input": "abstract",
+  "listing": "new",
+  "chunk_size": 50,
+  "fallbacks": "default",
+  "note": "Initial configuration for the 10-paper test."
+ }
+]

@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>MapHub</title>
+  <meta name="description" content="MIDAS arXiv Preprint Hub: daily heatmaps of new astro-ph and cs.AI papers scored for each participant.">
+  <link rel="stylesheet" href="viewer.css">
+  <script type="module" src="viewer.js"></script>
+</head>
+<body>
+  <header class="bar">
+    <h1><a id="home" href="./">MapHub</a></h1>
+    <nav class="dates" aria-label="Announcement dates">
+      <button id="prev" type="button" aria-label="Previous day">‹</button>
+      <input id="date" type="date" aria-label="Announcement date">
+      <button id="next" type="button" aria-label="Next day">›</button>
+      <a id="latest" href="./">Latest</a>
+    </nav>
+  </header>
+
+  <main>
+    <p id="status" class="status" role="status">Loading…</p>
+    <div class="legend" id="legend" hidden>
+      <span class="legend-label">Relevance</span>
+      <div class="legend-scale">
+        <div class="legend-bar" id="legend-bar"></div>
+        <div class="legend-ticks">
+          <span style="left:0%">0</span><span style="left:30%">30</span><span style="left:60%">60</span><span style="left:80%">80</span><span style="left:100%">100</span>
+        </div>
+      </div>
+    </div>
+    <div class="scroll" id="scroll" hidden>
+      <table id="heatmap"></table>
+    </div>
+  </main>
+
+  <div id="tip" class="tip" role="tooltip" hidden></div>
+</body>
+</html>

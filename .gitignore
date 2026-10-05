@@ -1,0 +1,30 @@
+# maphub: PUBLIC. Code, configuration log and daily tables.
+
+# Secrets: the Claude API key lives here locally; the Action uses a repo secret.
+.env
+.env.*
+
+# Private portfolios repo, checked out inside this one
+maphub-portfolios/
+
+# Saved papers and scores for resuming runs, and the local report cache
+.work/
+
+# Leftovers from interrupted writes (files are written to .tmp, then renamed)
+*.tmp
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# Operating system and editor files
+.DS_Store
+Thumbs.db
+desktop.ini
+*:Zone.Identifier
+*.swp
+*~
+.vscode/
+.idea/

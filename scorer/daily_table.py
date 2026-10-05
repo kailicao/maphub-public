@@ -16,8 +16,8 @@ Steps:
      rerun on a later day still has them.
   2. Score. One Claude request per participant per chunk of about 50 papers.
      The instructions and papers come first and are cached across participants.
-  3. Write. One Parquet file per ID month, the viewer's side files (index.json,
-     papers/<date>.json) and each participant's report.
+  3. Write. One Parquet file per ID month, the viewer's index.json and each
+     participant's report.
   4. Resume. Each (participant, chunk) is saved as it arrives; a rerun skips
      what is already saved. Parquet files are written only once all are done.
 
@@ -461,22 +461,12 @@ def write_tables(tables: Path, date: dt.date, papers, scores: dict[str, dict[str
         pq.write_table(pa.table(columns), tmp)
         os.replace(tmp, path)
         written.append(path)
-    write_viewer_files(tables, date, papers, written)
+    write_index(tables, date, written)
     return written
 
 
-def write_viewer_files(tables: Path, date: dt.date, papers, written: list[Path]) -> None:
-    """Files the web viewer reads besides the tables.
-
-    papers/<date>.json: titles and first three authors, since browsers cannot
-    query the arXiv API (it sends no CORS header).
-    index.json: each date's table files, so the viewer knows which days exist.
-    """
-    write_json(tables / "papers" / f"{date.isoformat()}.json", {
-        p["id"]: {"title": p["title"], "authors": p["authors"][:3],
-                  "n_authors": len(p["authors"]), "primary": p["primary"]}
-        for p in papers
-    })
+def write_index(tables: Path, date: dt.date, written: list[Path]) -> None:
+    """index.json: each date's table files, so the viewer knows which days exist."""
     index_path = tables / "index.json"
     index = read_json(index_path) if index_path.exists() else {"dates": {}}
     index["dates"][date.isoformat()] = [path.relative_to(tables).as_posix() for path in written]

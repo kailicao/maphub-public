@@ -1,9 +1,10 @@
 // MapHub viewer: one announcement day's scores as a heatmap.
 //
 // URLs: <base>/ shows the latest day, <base>/YYYY-MM-DD a given day. The page
-// reads <base>/tables/index.json (which days exist and their Parquet files),
-// the day's Parquet files and <base>/tables/papers/<date>.json (titles and
-// authors; the arXiv API sends no CORS header, so the browser cannot ask it).
+// reads <base>/tables/index.json (which days exist and their Parquet files)
+// and the day's Parquet files. Titles, authors and primary categories come from
+// DataCite, which holds the metadata of arXiv's DOIs (10.48550/arXiv.<ID>);
+// the arXiv API sends no CORS header, so a browser cannot ask it directly.
 //
 // Selecting a participant sorts papers by relevance to them and participants by
 // similarity to them; selecting a paper sorts papers by similarity to it and
@@ -16,6 +17,9 @@ import { parquetReadObjects } from "https://cdn.jsdelivr.net/npm/hyparquet@1.31.
 const RAMP = ["#cde2fb", "#b7d3f6", "#9ec5f4", "#86b6ef", "#6da7ec", "#5598e7", "#3987e5",
   "#2a78d6", "#256abf", "#1c5cab", "#184f95", "#104281", "#0d366b"];
 const URL_DELAY = 500; // ms of hovering over an arXiv ID before its URL pops up
+const DATACITE = "https://api.datacite.org/dois";
+const DATACITE_FIELDS = "titles,creators,subjects";
+const SEARCH_BATCH = 100; // DOIs per DataCite search, to keep URLs short
 
 const $ = (id) => document.getElementById(id);
 const match = location.pathname.match(/^(.*\/)(\d{4}-\d{2}-\d{2})\/?$/);
@@ -28,23 +32,55 @@ let selection = null;  // {kind: "p" | "paper", key}
 
 // ---------------------------------------------------------------- loading
 
-async function getJSON(url) {
-  const resp = await fetch(url, { cache: "no-cache" });
-  if (!resp.ok) throw new Error(`${url}: HTTP ${resp.status}`);
-  return resp.json();
+// One DataCite record -> [arXiv ID, {title, authors (first three), n_authors, primary}].
+function fromDataCite(record) {
+  const a = record.attributes;
+  const creators = a.creators ?? [];
+  const name = (c) => (c.givenName && c.familyName ? `${c.givenName} ${c.familyName}` : c.name ?? "");
+  // arXiv lists the primary category first, as "Name (archive.SUB)".
+  const subject = (a.subjects ?? []).find((s) => s.subjectScheme === "arXiv");
+  return [record.id.replace(/^10\.48550\/arxiv\./i, ""), {
+    title: a.titles?.[0]?.title ?? "",
+    authors: creators.slice(0, 3).map(name),
+    n_authors: creators.length,
+    primary: subject?.subject.match(/\(([^()]+)\)\s*$/)?.[1] ?? "",
+  }];
+}
+
+async function fetchPaperInfo(ids) {
+  const info = {};
+  const keep = async (url, pick) => {
+    try {
+      const resp = await fetch(url);
+      if (!resp.ok) return;
+      for (const record of pick(await resp.json())) {
+        const [id, paper] = fromDataCite(record);
+        info[id] = paper;
+      }
+    } catch { /* missing titles are shown as unavailable */ }
+  };
+  const batches = [];
+  for (let i = 0; i < ids.length; i += SEARCH_BATCH) batches.push(ids.slice(i, i + SEARCH_BATCH));
+  await Promise.all(batches.map((part) => keep(`${DATACITE}?${new URLSearchParams({
+    query: `doi:(${part.map((id) => `10.48550/arxiv.${id}`).join(" OR ")})`,
+    "page[size]": String(part.length),
+    "fields[dois]": DATACITE_FIELDS,
+  })}`, (json) => json.data)));
+  // DataCite's search index can lag behind new DOIs; ask for the rest one by one.
+  await Promise.all(ids.filter((id) => !info[id]).map((id) => keep(
+    `${DATACITE}/10.48550/arxiv.${id}?fields[dois]=${DATACITE_FIELDS}`, (json) => [json.data])));
+  return info;
 }
 
 async function loadDay(date, files) {
-  const [info, ...tables] = await Promise.all([
-    getJSON(`${TABLES}papers/${date}.json`),
-    ...files.map(async (file) => {
-      const resp = await fetch(TABLES + file);
-      if (!resp.ok) throw new Error(`${file}: HTTP ${resp.status}`);
-      // The folder (YYMM) supplies the part of the ID the rows leave out.
-      const yymm = file.split("/").at(-2);
-      return { yymm, rows: await parquetReadObjects({ file: await resp.arrayBuffer() }) };
-    }),
-  ]);
+  const tables = await Promise.all(files.map(async (file) => {
+    const resp = await fetch(TABLES + file);
+    if (!resp.ok) throw new Error(`${file}: HTTP ${resp.status}`);
+    // The folder (YYMM) supplies the part of the ID the rows leave out.
+    const yymm = file.split("/").at(-2);
+    return { yymm, rows: await parquetReadObjects({ file: await resp.arrayBuffer() }) };
+  }));
+  const info = await fetchPaperInfo(tables.flatMap(({ yymm, rows }) => rows.map((r) => `${yymm}.${r.id}`)));
   // A month-boundary date has two files; merge them.
   const people = [...new Set(tables.flatMap((t) => t.rows.length ? Object.keys(t.rows[0]) : []))]
     .filter((k) => k !== "id").sort();
@@ -53,7 +89,7 @@ async function loadDay(date, files) {
   for (const { yymm, rows } of tables) {
     for (const row of rows) {
       const id = `${yymm}.${row.id}`;
-      papers.push({ id, ...(info[id] ?? { title: "(title unavailable)", authors: [], n_authors: 0, primary: "" }) });
+      papers.push({ id, missing: !info[id], ...(info[id] ?? { title: "(title unavailable)", authors: [], n_authors: 0, primary: "" }) });
       for (const who of people) {
         if (row[who] != null) score.set(`${id}|${who}`, Number(row[who]));
       }
@@ -197,6 +233,8 @@ function render() {
       : `Papers by similarity (r) to ${selection.key}; participants by its relevance to them.`;
     status.append(el("button", { type: "button", class: "clear", onclick: () => select(null) }, "Clear"));
   }
+  const missing = day.papers.filter((p) => p.missing).length;
+  if (missing) status.append(` ${missing} titles could not be loaded from DataCite; their arXiv links still work.`);
 }
 
 function select(next) {

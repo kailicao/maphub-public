@@ -12,6 +12,7 @@ MapHub is the MapHub Carpentry of Kaili Cao's fellowship at the Michigan Institu
 - Select a participant (column name) to sort papers by relevance to them and participants by similarity to them. Select a paper (title) to sort papers by similarity to it and participants by its relevance to them. Similarity is the correlation (r) of that day's scores.
 - Hover over an arXiv ID for its URL, or over a cell for its score. The selection is kept in the URL, so a view can be shared.
 - Columns carry pseudonyms rather than names.
+- Titles and authors come from [DataCite](https://datacite.org/), which holds the metadata of arXiv's DOIs; the arXiv API cannot be queried from a browser.
 
 ## Tables
 
@@ -22,7 +23,6 @@ tables/
   2024-2026/                 three-year spans aligned with 1991
     2610/                    arXiv ID month (YYMM)
       2026-10-06.parquet     papers with 2610 IDs announced on Oct 6, 2026
-  papers/2026-10-06.json     titles and first three authors, for the viewer
   index.json                 the dates that have tables
 ```
 

@@ -23,10 +23,11 @@ tables/
   2024-2026/                 three-year spans aligned with 1991
     2610/                    arXiv ID month (YYMM)
       2026-10-06.parquet     papers with 2610 IDs announced on Oct 6, 2026
-  index.json                 the dates that have tables
+  index.json                 the dates with a table, by ID month: {"2610": [5, 6]}
+  participants.json          who is active, and whose columns the viewer hides
 ```
 
-Each file has one row per paper: an `id` column holding the part of the arXiv ID the folder does not supply (`02245` for 2610.02245; `astro-ph_234` for the old-style astro-ph/0601234), then one `uint8` column of scores per participant. A date at a month boundary can have two files, one per ID month. Parquet opens in Python, R, Julia, MATLAB and DuckDB, for example:
+Each file has one row per paper: an `id` column holding the part of the arXiv ID the folder does not supply (`02245` for 2610.02245; `astro-ph_234` for the old-style astro-ph/0601234), then one `uint8` column of scores per participant. Each paper is scored once and appears in exactly one file. A date can have two files when its papers carry two ID months, as on the first listing of a month; `index.json` then lists that date in full under the other month, e.g. `"2609": [30, "2026-10-01"]`. Parquet opens in Python, R, Julia, MATLAB and DuckDB, for example:
 
 ```python
 import pandas as pd
@@ -35,7 +36,7 @@ df = pd.read_parquet("tables/2024-2026/2610/2026-10-06.parquet")
 
 ## Configuration log
 
-[`config-log.json`](config-log.json) records each change to the scoring setup with the date it takes effect: model, effort, prompt version, input (abstract only or more), listing (new submissions only or extended) and chunk size. A table's date shows which configuration produced it.
+[`config-log.json`](config-log.json) records each change to the scoring setup with the date it takes effect: model, effort, prompt version, input (abstract only or more), listing (new submissions only or extended) and chunk size. Entries apply by the date a table is scored, not the listing it covers, so a table's commit time in this repository identifies both the configuration and the portfolio versions behind it. A rescored table replaces the old one, and git keeps the earlier version.
 
 ## Repository layout
 

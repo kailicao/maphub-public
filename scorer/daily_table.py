@@ -167,7 +167,7 @@ def load_env(path: Path) -> None:
 
 
 def load_config(path: Path, date: dt.date) -> dict:
-    """Return the configuration-log entry in effect on `date`."""
+    """Return the configuration-log entry in effect on `date` (the run date)."""
     entries = sorted(read_json(path), key=lambda e: e["effective"])
     active = [e for e in entries if dt.date.fromisoformat(e["effective"]) <= date]
     if not active:
@@ -666,10 +666,84 @@ def report_picks(mine: dict[str, int]) -> list[tuple[str, int]]:
     return [(pid, s) for i, (pid, s) in enumerate(ranked) if i < REPORT_TOP or s > REPORT_ABOVE]
 
 
+def yymm_year(yymm: str) -> int:
+    return (1900 if int(yymm[:2]) >= 91 else 2000) + int(yymm[:2])  # arXiv began in 1991
+
+
 def table_path(tables: Path, yymm: str, date: dt.date) -> Path:
-    year = (1900 if int(yymm[:2]) >= 91 else 2000) + int(yymm[:2])  # arXiv began in 1991
+    year = yymm_year(yymm)
     span = FIRST_YEAR + 3 * ((year - FIRST_YEAR) // 3)
     return tables / f"{span}-{span + 2}" / yymm / f"{date.isoformat()}.parquet"
+
+
+def read_index(tables: Path) -> dict[str, list]:
+    """index.json: for each ID-month folder, the listing dates that have a table in it.
+
+    A day in the folder's own month is written as a number, any other date in
+    full: {"2609": [29, 30, "2026-10-01"], "2610": [2, 5, 6]}. A static website
+    cannot list folders, so the viewer reads this to find the days and files.
+    """
+    path = tables / "index.json"
+    return read_json(path) if path.exists() else {}
+
+
+def index_dates(tables: Path) -> dict[str, list[str]]:
+    """Listing date (ISO) -> the ID-month folders holding its tables."""
+    dates: dict[str, list[str]] = {}
+    for yymm, entries in read_index(tables).items():
+        for e in entries:
+            day = (f"{yymm_year(yymm)}-{yymm[2:]}-{e:02d}" if isinstance(e, int) else e)
+            dates.setdefault(day, []).append(yymm)
+    return dict(sorted(dates.items()))
+
+
+def write_index(tables: Path, date: dt.date, yymms: list[str]) -> None:
+    """Record that `date` has tables in the folders `yymms` (and in no others)."""
+    index = read_index(tables)
+    iso = date.isoformat()
+    for yymm in index:
+        index[yymm] = [e for e in index[yymm] if e != iso and not (
+            isinstance(e, int) and yymm_year(yymm) == date.year and int(yymm[2:]) == date.month and e == date.day)]
+    for yymm in yymms:
+        own = yymm_year(yymm) == date.year and int(yymm[2:]) == date.month
+        index.setdefault(yymm, []).append(date.day if own else iso)
+    as_date = lambda yymm, e: (f"{yymm_year(yymm)}-{yymm[2:]}-{e:02d}" if isinstance(e, int) else e)
+    ordered = {yymm: sorted(index[yymm], key=lambda e: as_date(yymm, e))
+               for yymm in sorted(index, key=lambda y: (yymm_year(y), y[2:])) if index[yymm]}
+    # One folder per line keeps the file readable and its diffs small.
+    lines = [f" {json.dumps(k)}: {json.dumps(v)}" for k, v in ordered.items()]
+    (tables / "index.json").write_text("{\n" + ",\n".join(lines) + "\n}\n", encoding="utf-8")
+
+
+def scored_elsewhere(tables: Path, date: dt.date, papers) -> set[str]:
+    """Papers already in another date's table: each paper is scored once only.
+
+    A paper can only be in its own ID-month folder, so only those few files are
+    read. A rebuilt (legacy or backfilled) listing places a paper held for
+    moderation by submission, while the RSS feed places it by announcement, so
+    the two can claim the same paper; the date written first keeps it.
+    """
+    months = {id_parts(p["id"])[0] for p in papers}
+    seen: set[str] = set()
+    for yymm in months:
+        folder = table_path(tables, yymm, date).parent
+        for f in folder.glob("*.parquet"):
+            if f.stem != date.isoformat():
+                seen.update(full_id(yymm, r) for r in pq.read_table(f, columns=["id"]).column("id").to_pylist())
+    return {p["id"] for p in papers} & seen
+
+
+def check_portfolios(portfolios: Path) -> None:
+    """A table's commit time identifies the portfolios behind it, so a run that
+    writes tables must use portfolios that are committed and pushed."""
+    git = lambda *a: subprocess.run(["git", "-C", str(portfolios), *a], capture_output=True, text=True)
+    if git("rev-parse", "--git-dir").returncode != 0:
+        raise MapHubError(f"{portfolios} is not a git repository")
+    if git("status", "--porcelain").stdout.strip():
+        raise MapHubError("maphub-portfolios has uncommitted changes; commit and push them first")
+    ahead = git("rev-list", "--count", "@{u}..HEAD")
+    if ahead.returncode == 0 and ahead.stdout.strip() != "0":
+        raise MapHubError("maphub-portfolios has unpushed commits; push them first")
 
 
 def write_tables(tables: Path, date: dt.date, papers, scores: dict[str, dict[str, int]]) -> list[Path]:
@@ -703,41 +777,19 @@ def write_tables(tables: Path, date: dt.date, papers, scores: dict[str, dict[str
         pq.write_table(pa.table(columns), tmp)
         os.replace(tmp, path)
         written.append(path)
-    write_index(tables, date, written)
+    write_index(tables, date, sorted(by_month))
     return written
 
 
-def publish_roster(tables: Path, portfolios: Path, date: dt.date) -> None:
-    """Copy who is active and who is hidden into index.json for the public viewer,
-    and record which maphub-portfolios commit scored this date.
-
-    The tables are never changed when someone pauses or leaves; the viewer
-    hides the columns listed as hidden and marks visible ones not listed as active.
-    """
+def publish_roster(tables: Path, portfolios: Path) -> None:
+    """tables/participants.json: who is active and whose column is hidden, for the
+    public viewer. The tables never change when someone pauses or leaves; the
+    viewer hides the hidden columns and greys out visible ones not active."""
     status = read_json(portfolios / "participants.json")["participants"]
-    index_path = tables / "index.json"
-    index = read_json(index_path) if index_path.exists() else {"dates": {}}
-    commit = subprocess.run(["git", "-C", str(portfolios), "rev-parse", "HEAD"],
-                            capture_output=True, text=True)
-    if commit.returncode == 0:
-        # Any score can be traced to the portfolio version behind it.
-        versions = index.setdefault("portfolio_versions", {})
-        versions[date.isoformat()] = commit.stdout.strip()
-        index["portfolio_versions"] = dict(sorted(versions.items()))
-    index["participants"] = {
+    write_json(tables / "participants.json", {
         "active": sorted(w for w, e in status.items() if e.get("status") == "active" and not e.get("hidden")),
         "hidden": sorted(w for w, e in status.items() if e.get("hidden")),
-    }
-    write_json(index_path, index)
-
-
-def write_index(tables: Path, date: dt.date, written: list[Path]) -> None:
-    """index.json: each date's table files, so the viewer knows which days exist."""
-    index_path = tables / "index.json"
-    index = read_json(index_path) if index_path.exists() else {"dates": {}}
-    index["dates"][date.isoformat()] = [path.relative_to(tables).as_posix() for path in written]
-    index["dates"] = dict(sorted(index["dates"].items()))
-    write_json(index_path, index)
+    })
 
 
 def write_reports(reports: Path, date: dt.date, papers, scores, cfg) -> None:
@@ -791,13 +843,12 @@ def rebuild_reports(args) -> int:
     """Rebuild one date's reports from its table: no scoring, and no Claude requests,
     so a backfilled or locally scored day can join the report cache."""
     date = args.date
-    files = read_json(args.tables / "index.json")["dates"].get(date.isoformat())
-    if not files:
+    yymms = index_dates(args.tables).get(date.isoformat())
+    if not yymms:
         raise MapHubError(f"no table for {date}")
     scores: dict[str, dict[str, int]] = {}
-    for file in files:
-        yymm = Path(file).parent.name
-        for row in pq.read_table(args.tables / file).to_pylist():
+    for yymm in yymms:
+        for row in pq.read_table(table_path(args.tables, yymm, date)).to_pylist():
             pid = full_id(yymm, row["id"])
             for who, value in row.items():
                 if who != "id" and value is not None:
@@ -809,7 +860,7 @@ def rebuild_reports(args) -> int:
     missing = sorted({pid for mine in scores.values() for pid in mine} - info.keys())
     if missing:
         info.update(fetch_metadata(missing))
-    cfg = load_config(args.config, date)
+    cfg = load_config(args.config, dt.datetime.now(EASTERN).date())
     log(f"{date}: rebuilding reports for {len(scores)} participants from the table")
     write_reports(args.reports, date, list(info.values()), scores, cfg)
     log(f"Wrote reports to {args.reports}")
@@ -875,12 +926,23 @@ def main() -> int:
         if args.date is None and not args.test:
             # Runs are repeated in case arXiv announces late; a listing already in
             # the tables is not scored again (an explicit date forces a rescore).
-            index_path = args.tables / "index.json"
-            if index_path.exists() and date.isoformat() in read_json(index_path)["dates"]:
+            if date.isoformat() in index_dates(args.tables):
                 log(f"The current listing ({date}) is already scored; nothing to do.")
                 return 0
-        cfg = load_config(args.config, date)
+        # The configuration log takes effect by run date, so a rerun of an old
+        # listing uses, and is attributed to, the configuration of its run.
+        cfg = load_config(args.config, dt.datetime.now(EASTERN).date())
         day_dir = args.work / date.isoformat()
+        if not args.test:
+            check_portfolios(args.portfolios)
+            dupes = scored_elsewhere(args.tables, date, papers)
+            if dupes:
+                log(f"Skipping {len(dupes)} papers already scored on another date: {', '.join(sorted(dupes)[:5])}"
+                    + (" ..." if len(dupes) > 5 else ""))
+                papers = [p for p in papers if p["id"] not in dupes]
+            if not papers:
+                log(f"Every paper of {date} is already scored on another date; nothing to do.")
+                return 0
         tables, reports = args.tables, args.reports
         if args.test:
             papers = test_sample(papers)
@@ -939,7 +1001,7 @@ def main() -> int:
                 scores[who].update(read_json(scores_dir / who / f"chunk{k}.json")["scores"])
         for path in write_tables(tables, date, papers, scores):
             log(f"Wrote {path}")
-        publish_roster(tables, args.portfolios, date)
+        publish_roster(tables, args.portfolios)
         if legacy and not args.test:
             log("No reports for a past date; the report cache holds recent days only.")
         else:

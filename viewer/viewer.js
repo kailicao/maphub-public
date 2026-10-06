@@ -32,7 +32,7 @@ const requested = match ? match[2] : null;
 
 let day = null;        // {date, papers: [{id, title, authors, n_authors, primary}], people: [...], score: Map}
 let selection = null;  // {kind: "p" | "paper", key}
-// From index.json: who is active, and whose columns are hidden. The tables keep
+// From participants.json: who is active, and whose columns are hidden. The tables keep
 // every column; hiding happens here. Without the lists, everyone counts as active.
 let roster = { active: null, hidden: [] };
 const isActive = (who) => !roster.active || roster.active.includes(who);
@@ -405,29 +405,50 @@ function fail(message) {
   $("legend").hidden = $("scroll").hidden = true;
 }
 
+// index.json lists, for each ID-month folder, the listing dates with a table in
+// it: a day of the folder's own month as a number, any other date in full.
+// {"2609": [29, 30, "2026-10-01"], "2610": [2, 5, 6]} -> date -> table files.
+function tableFiles(index) {
+  const files = {};
+  for (const [yymm, entries] of Object.entries(index)) {
+    const year = (Number(yymm.slice(0, 2)) >= 91 ? 1900 : 2000) + Number(yymm.slice(0, 2));
+    const start = 1991 + 3 * Math.floor((year - 1991) / 3);
+    for (const e of entries) {
+      const date = typeof e === "number" ? `${year}-${yymm.slice(2)}-${String(e).padStart(2, "0")}` : e;
+      (files[date] ??= []).push(`${start}-${start + 2}/${yymm}/${date}.parquet`);
+    }
+  }
+  return files;
+}
+
+async function getOptionalJSON(url, fallback) {
+  const resp = await fetch(url, { cache: "no-cache" });
+  if (resp.status === 404) return fallback;
+  if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+  return resp.json();
+}
+
 async function main() {
-  let index;
+  let files, people;
   try {
-    const resp = await fetch(TABLES + "index.json", { cache: "no-cache" });
     // No index means no table has been written yet.
-    if (resp.status === 404) index = { dates: {} };
-    else if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-    else index = await resp.json();
+    files = tableFiles(await getOptionalJSON(TABLES + "index.json", {}));
+    people = await getOptionalJSON(TABLES + "participants.json", null);
   } catch (e) {
     return fail(`Could not load the table index (${e.message}).`);
   }
-  const dates = Object.keys(index.dates).sort();
+  const dates = Object.keys(files).sort();
   const date = requested ?? dates.at(-1);
   wireDates(dates, date);
   if (!date) return fail("No tables yet. The first one appears after the first daily run.");
   document.title = `MapHub ${date}`;
-  if (!index.dates[date]) {
+  if (!files[date]) {
     return fail(`No table for ${date}. arXiv makes no announcement on weekends and holidays, ` +
       "and a day's table appears only after that day's listing is scored.");
   }
   try {
-    roster = { active: index.participants?.active ?? null, hidden: index.participants?.hidden ?? [] };
-    day = await loadDay(date, index.dates[date]);
+    roster = { active: people?.active ?? null, hidden: people?.hidden ?? [] };
+    day = await loadDay(date, files[date]);
   } catch (e) {
     return fail(`Could not load the table for ${date} (${e.message}).`);
   }

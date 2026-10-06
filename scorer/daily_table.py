@@ -94,6 +94,22 @@ BATCH_ROUNDS = 3  # batch mode: resubmissions of failed requests
 BATCH_POLL = 60
 CLAUDE_CODE_TIMEOUT = 900  # seconds per request through Claude Code
 CLAUDE_CODE_SYSTEM = "You score arXiv papers for relevance to a research portfolio. Reply with JSON only."
+REASONS_PROMPT = """\
+You explain relevance scores in a daily reading report for the subject of a research portfolio: a researcher, a group or a collaboration. Each paper below was scored from 0 to 100 against the portfolio (100 = the subject wrote it or would write it; 80 = would coauthor it; 60 = has cited it or probably will; 30 = may broaden their view; 0 = outside their interests). The papers come first, then the portfolio.
+
+For each paper, write one or two sentences saying which parts of the portfolio it connects to and why it earned its score. Be specific about the shared methods, data or questions; name the portfolio topic. If the paper is listed in the portfolio, say so. Do not restate the abstract or the score.
+
+Return only JSON: {"reasons": [{"id": "<arXiv ID>", "reason": "<one or two sentences>"}]}.
+
+"""
+REASONS_SCHEMA = json.dumps({
+    "type": "object",
+    "properties": {"reasons": {"type": "array", "items": {
+        "type": "object",
+        "properties": {"id": {"type": "string"}, "reason": {"type": "string"}},
+        "required": ["id", "reason"]}}},
+    "required": ["reasons"],
+})
 SCORES_SCHEMA = json.dumps({
     "type": "object",
     "properties": {"scores": {"type": "array", "items": {
@@ -657,6 +673,89 @@ def score_batch(client, cfg, jobs, prefixes, portfolios, scores_dir, state: Path
         state.unlink()
 
 
+# ---------------------------------------------------------------------- reasons
+
+
+def report_picks(mine: dict[str, int]) -> list[tuple[str, int]]:
+    """A participant's report: their top 5 papers plus all above 90, ranked by score."""
+    ranked = sorted(mine.items(), key=lambda kv: (-kv[1], kv[0]))
+    return [(pid, s) for i, (pid, s) in enumerate(ranked) if i < REPORT_TOP or s > REPORT_ABOVE]
+
+
+def ask_json(cfg: dict, via: str, text: str, schema: str) -> tuple[dict, dict]:
+    """One request expecting a JSON object; returns (object, usage) by either route."""
+    if via == "claude-code":
+        env = {k: v for k, v in os.environ.items()
+               if k not in ("ANTHROPIC_API_KEY", "ANTHROPIC_AUTH_TOKEN")}
+        command = ["claude", "-p", "--model", cfg["model"], "--tools", "",
+                   "--system-prompt", "Reply with JSON only.", "--output-format", "json",
+                   "--json-schema", schema, "--no-session-persistence", "--setting-sources", ""]
+        if cfg.get("effort"):
+            command += ["--effort", cfg["effort"]]
+        with tempfile.TemporaryDirectory() as empty:
+            run = subprocess.run(command, input=text, capture_output=True, text=True,
+                                 cwd=empty, env=env, timeout=CLAUDE_CODE_TIMEOUT)
+        out = json.loads(run.stdout) if run.stdout.strip() else {}
+        if run.returncode != 0 or out.get("is_error") or not out.get("structured_output"):
+            raise MapHubError(str(out.get("result") or run.stderr.strip() or f"exit {run.returncode}")[:300])
+        u = out.get("usage", {})
+        return out["structured_output"], {"input": u.get("input_tokens", 0) + u.get("cache_creation_input_tokens", 0)
+                                          + u.get("cache_read_input_tokens", 0), "output": u.get("output_tokens", 0)}
+    params = {"model": cfg["model"], "max_tokens": MAX_TOKENS,
+              "messages": [{"role": "user", "content": text}]}
+    if cfg.get("effort"):
+        params["output_config"] = {"effort": cfg["effort"]}
+    client = anthropic.Anthropic()
+    if cfg.get("fallbacks"):
+        message = client.beta.messages.create(**params, fallbacks=cfg["fallbacks"],
+                                              betas=["server-side-fallback-2026-07-01"])
+    else:
+        message = client.messages.create(**params)
+    if message.stop_reason in ("refusal", "max_tokens"):
+        raise MapHubError(f"reply stopped: {message.stop_reason}")
+    reply = "".join(b.text for b in message.content if b.type == "text")
+    try:
+        obj = json.loads(reply[reply.index("{"): reply.rindex("}") + 1])
+    except ValueError as e:
+        raise MapHubError("reply is not JSON") from e
+    return obj, {"input": message.usage.input_tokens, "output": message.usage.output_tokens}
+
+
+def get_reasons(cfg, via, date, info, scores, portfolios, work_dir: Path) -> dict[str, dict[str, str]]:
+    """One request per participant: why each paper in their report scored as it did.
+
+    Reasons can echo the portfolio, so they go only into the private reports,
+    never into the public tables or the run log. They are saved in the work dir
+    so a rerun does not ask again.
+    """
+    reasons = {}
+    for who, mine in scores.items():
+        saved = work_dir / "reasons" / f"{who}.json"
+        picks = report_picks(mine)
+        if saved.exists() and set(read_json(saved)) >= {pid for pid, _ in picks}:
+            reasons[who] = read_json(saved)
+            continue
+        entries = [f"[{pid}] {info[pid]['title']} (score {s})\n{', '.join(info[pid]['authors'])}\n"
+                   f"{info[pid]['abstract']}" for pid, s in picks]
+        text = (REASONS_PROMPT + "<papers>\n" + "\n\n".join(entries) + "\n</papers>\n\n"
+                + f"<portfolio>\n{portfolios[who]}\n</portfolio>")
+        for attempt in range(1, SCORE_ATTEMPTS + 1):
+            try:
+                obj, usage = ask_json(cfg, via, text, REASONS_SCHEMA)
+                got = {bare_id(str(r["id"])): str(r["reason"]).strip() for r in obj["reasons"]}
+                break
+            except (MapHubError, KeyError, TypeError, json.JSONDecodeError, subprocess.TimeoutExpired,
+                    anthropic.APIConnectionError, anthropic.APIStatusError) as e:
+                log(f"  reasons for {who}: attempt {attempt} failed: {str(e)[:120]}")
+        else:
+            log(f"  reasons for {who}: giving up; the report will have no reasons")
+            continue
+        write_json(saved, got)
+        reasons[who] = got
+        log(f"  reasons for {who}: {len(got)} papers, tokens in {usage['input']}, out {usage['output']}")
+    return reasons
+
+
 # ------------------------------------------------------------------------ write
 
 
@@ -734,21 +833,24 @@ def write_index(tables: Path, date: dt.date, written: list[Path]) -> None:
     write_json(index_path, index)
 
 
-def write_reports(reports: Path, date: dt.date, papers, scores, cfg) -> None:
-    """Each participant's top 5 papers plus all above 90, ranked by score."""
+def write_reports(reports: Path, date: dt.date, papers, scores, cfg, reasons=None) -> None:
+    """Each participant's top 5 papers plus all above 90, ranked by score, with the
+    reason for each score when there is one."""
     info = {p["id"]: p for p in papers}
     for who, mine in scores.items():
-        ranked = sorted(mine.items(), key=lambda kv: (-kv[1], kv[0]))
-        picked = [(pid, s) for i, (pid, s) in enumerate(ranked)
-                  if i < REPORT_TOP or s > REPORT_ABOVE]
+        picked = report_picks(mine)
+        why = (reasons or {}).get(who, {})
         lines = [f"# MapHub report for {who}, {date.isoformat()}", "",
-                 f"{len(picked)} of {len(ranked)} new papers; scored by {cfg['model']}, "
+                 f"{len(picked)} of {len(mine)} new papers; scored by {cfg['model']}, "
                  f"prompt {cfg['prompt']}.", ""]
         for pid, s in picked:
             p = info[pid]
             authors = ", ".join(p["authors"][:3]) + (" et al." if len(p["authors"]) > 3 else "")
             lines += [f"## {s} · [{pid}](https://arxiv.org/abs/{pid}) · {p['primary']}", "",
-                      f"**{p['title']}**", "", authors, "", p["abstract"], ""]
+                      f"**{p['title']}**", "", authors, ""]
+            if pid in why:
+                lines += [f"*Why:* {why[pid]}", ""]
+            lines += [p["abstract"], ""]
         path = reports / who / f"{date.isoformat()}.md"
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text("\n".join(lines), encoding="utf-8")
@@ -783,6 +885,40 @@ def summarize(scores_dir: Path, participants) -> None:
 # ------------------------------------------------------------------------- main
 
 
+def rebuild_reports(args, own_only) -> int:
+    """Rebuild one date's reports from its table: no scoring, so a backfilled or
+    locally scored day can join the report cache. Reasons are added with --reasons."""
+    date, via = args.date, args.via or "api"
+    files = read_json(args.tables / "index.json")["dates"].get(date.isoformat())
+    if not files:
+        raise MapHubError(f"no table for {date}")
+    scores: dict[str, dict[str, int]] = {}
+    for file in files:
+        yymm = Path(file).parent.name
+        for row in pq.read_table(args.tables / file).to_pylist():
+            pid = full_id(yymm, row["id"])
+            for who, value in row.items():
+                if who != "id" and value is not None:
+                    scores.setdefault(who, {})[pid] = value
+    portfolios = load_participants(args.portfolios)
+    if own_only:
+        portfolios = own_only(portfolios)
+    scores = {w: v for w, v in scores.items() if w in portfolios}
+    saved = args.work / date.isoformat() / "papers.json"
+    info = {p["id"]: p for p in read_json(saved)} if saved.exists() else {}
+    missing = sorted({pid for mine in scores.values() for pid in mine} - info.keys())
+    if missing:
+        info.update(fetch_metadata(missing))
+    cfg = load_config(args.config, date)
+    log(f"{date}: rebuilding reports for {len(scores)} participants from the table"
+        + (f"; reasons via {via}" if args.reasons else ""))
+    reasons = (get_reasons(cfg, via, date, info, scores, portfolios, args.work / date.isoformat())
+               if args.reasons else None)
+    write_reports(args.reports, date, list(info.values()), scores, cfg, reasons)
+    log(f"Wrote reports to {args.reports}")
+    return 0
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     ap.add_argument("date", nargs="?", type=dt.date.fromisoformat,
@@ -793,6 +929,10 @@ def main() -> int:
     ap.add_argument("--backfill", action="store_true",
                     help="score a past date like a daily run: all active participants, via the API, "
                          "with reports (default for past dates: the legacy survey)")
+    ap.add_argument("--reasons", action="store_true",
+                    help="add a reason for each paper in the reports (one extra request per participant)")
+    ap.add_argument("--reports-only", action="store_true",
+                    help="rebuild a date's reports from its table, without scoring")
     ap.add_argument("--via", choices=["api", "claude-code"],
                     help="how to send requests (default: claude-code for a past date, else api)")
     ap.add_argument("--model", help="with --test: try this model instead of the configured one")
@@ -816,7 +956,26 @@ def main() -> int:
     if via == "claude-code" and args.batch:
         ap.error("--batch works only with --via api")
 
+    if args.reports_only and args.date is None:
+        ap.error("--reports-only needs a date")
+
+    def own_only(portfolios: dict) -> dict:
+        """On the Claude Code route, only the columns listed in MAPHUB_OWN_PARTICIPANTS."""
+        own = [w.strip() for w in os.environ.get("MAPHUB_OWN_PARTICIPANTS", "").split(",") if w.strip()]
+        if not own:
+            raise MapHubError("set MAPHUB_OWN_PARTICIPANTS in .env (comma-separated pseudonyms): "
+                              "Claude Code serves only the columns listed there")
+        skipped = [w for w in own if w not in portfolios]
+        if skipped:
+            log(f"Not serving {', '.join(skipped)}: inactive, not opted in, or no portfolio")
+        kept = {w: portfolios[w] for w in own if w in portfolios}
+        if not kept:
+            raise MapHubError("none of MAPHUB_OWN_PARTICIPANTS can be served")
+        return kept
+
     try:
+        if args.reports_only:
+            return rebuild_reports(args, own_only if (args.via or "api") == "claude-code" else None)
         date, papers = get_papers(args.work, args.date)
         if args.date is None and not args.test:
             # Runs are repeated in case arXiv announces late; a listing already in
@@ -843,16 +1002,7 @@ def main() -> int:
             tables, reports = day_dir / "tables", day_dir / "reports"
         portfolios = load_participants(args.portfolios, legacy=legacy and not args.test)
         if via == "claude-code":
-            own = [w.strip() for w in os.environ.get("MAPHUB_OWN_PARTICIPANTS", "").split(",") if w.strip()]
-            if not own:
-                raise MapHubError("set MAPHUB_OWN_PARTICIPANTS in .env (comma-separated pseudonyms): "
-                                  "Claude Code scores only the columns listed there")
-            skipped = [w for w in own if w not in portfolios]
-            if skipped:
-                log(f"Not scoring {', '.join(skipped)}: inactive, not opted in, or no portfolio")
-            portfolios = {w: portfolios[w] for w in own if w in portfolios}
-            if not portfolios:
-                raise MapHubError("none of MAPHUB_OWN_PARTICIPANTS can be scored")
+            portfolios = own_only(portfolios)
         cfg = {**cfg, "cache": len(portfolios) > 1}
         prompt = PROMPTS[cfg["prompt"]]
         chunks = make_chunks(papers, cfg["chunk_size"])
@@ -898,7 +1048,9 @@ def main() -> int:
         if legacy and not args.test:
             log("No reports for a past date; the report cache holds recent days only.")
         else:
-            write_reports(reports, date, papers, scores, cfg)
+            info = {p["id"]: p for p in papers}
+            reasons = get_reasons(cfg, via, date, info, scores, portfolios, day_dir) if args.reasons else None
+            write_reports(reports, date, papers, scores, cfg, reasons)
             log(f"Wrote reports to {reports}")
         return 0
     except MapHubError as e:

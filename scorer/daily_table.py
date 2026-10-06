@@ -309,12 +309,16 @@ def request_params(cfg: dict, prefix: str, portfolio: str) -> dict:
             {
                 "role": "user",
                 "content": [
-                    {"type": "text", "text": prefix, "cache_control": {"type": "ephemeral"}},
+                    {"type": "text", "text": prefix},
                     {"type": "text", "text": f"<portfolio>\n{portfolio}\n</portfolio>"},
                 ],
             }
         ],
     }
+    # Caching the papers block costs 25% extra to write and pays off only when
+    # other participants read it, so a lone participant skips it.
+    if cfg.get("cache", True):
+        params["messages"][0]["content"][0]["cache_control"] = {"type": "ephemeral"}
     if cfg.get("effort"):
         params["output_config"] = {"effort": cfg["effort"]}
     return params
@@ -525,6 +529,8 @@ def main() -> int:
     ap.add_argument("--test", action="store_true",
                     help="score 5 astro-ph and 5 cs.AI papers; outputs go to the work dir")
     ap.add_argument("--batch", action="store_true", help="use the Message Batches API")
+    ap.add_argument("--model", help="with --test: try this model instead of the configured one")
+    ap.add_argument("--effort", help="with --test: try this effort level ('none' to omit it)")
     ap.add_argument("--portfolios", type=Path, default=ROOT / "maphub-portfolios")
     ap.add_argument("--tables", type=Path, default=ROOT / "tables")
     ap.add_argument("--reports", type=Path, default=ROOT / ".work" / "reports",
@@ -534,23 +540,37 @@ def main() -> int:
     ap.add_argument("--config", type=Path, default=ROOT / "config-log.json")
     args = ap.parse_args()
     load_env(ROOT / ".env")
+    if (args.model or args.effort) and not args.test:
+        ap.error("--model and --effort are only for trials with --test; "
+                 "real runs follow the configuration log")
 
     try:
         date, papers = get_papers(args.work, args.date)
+        cfg = load_config(args.config, date)
         day_dir = args.work / date.isoformat()
         tables, reports = args.tables, args.reports
         if args.test:
             papers = test_sample(papers)
-            day_dir = day_dir / "test"
+            trial = ""
+            if args.model or args.effort:
+                # A trial setting gets its own folder, so results are not mixed.
+                cfg = {**cfg, "model": args.model or cfg["model"],
+                       "effort": cfg.get("effort") if args.effort is None
+                       else None if args.effort == "none" else args.effort}
+                if args.model:
+                    cfg["fallbacks"] = None  # not every model accepts them
+                trial = f"-{cfg['model']}-{cfg.get('effort') or 'default'}"
+            day_dir = day_dir / f"test{trial}"
             tables, reports = day_dir / "tables", day_dir / "reports"
-        cfg = load_config(args.config, date)
         portfolios = load_participants(args.portfolios)
+        cfg = {**cfg, "cache": len(portfolios) > 1}
         prompt = PROMPTS[cfg["prompt"]]
         chunks = make_chunks(papers, cfg["chunk_size"])
         prefixes = [papers_prefix(prompt, c) for c in chunks]
         scores_dir = day_dir / "scores"
         log(f"{date}: {len(papers)} papers in {len(chunks)} chunks, {len(portfolios)} "
-            f"participants; {cfg['model']}, effort {cfg.get('effort')}, prompt {cfg['prompt']}")
+            f"participants; {cfg['model']}, effort {cfg.get('effort')}, prompt {cfg['prompt']}"
+            + ("" if cfg["cache"] else "; no caching (one participant)"))
 
         def done(who: str, k: int) -> bool:
             f = scores_dir / who / f"chunk{k}.json"

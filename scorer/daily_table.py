@@ -8,6 +8,7 @@ Design: lsap-meth/midas-arxiv-preprint-hub.md (section "Daily table").
     python scorer/daily_table.py --test         # 5 astro-ph + 5 cs.AI papers, outputs in the work dir
     python scorer/daily_table.py --batch        # Message Batches API (half price, slower)
     python scorer/daily_table.py 2025-03-04     # a past date: Claude Code, listed columns only
+    python scorer/daily_table.py 2026-10-05 --backfill   # a missed day, scored like a daily run
 
 Steps:
   1. Fetch. The arXiv API cannot query by announcement date, so the current
@@ -789,6 +790,9 @@ def main() -> int:
     ap.add_argument("--test", action="store_true",
                     help="score 5 astro-ph and 5 cs.AI papers; outputs go to the work dir")
     ap.add_argument("--batch", action="store_true", help="use the Message Batches API")
+    ap.add_argument("--backfill", action="store_true",
+                    help="score a past date like a daily run: all active participants, via the API, "
+                         "with reports (default for past dates: the legacy survey)")
     ap.add_argument("--via", choices=["api", "claude-code"],
                     help="how to send requests (default: claude-code for a past date, else api)")
     ap.add_argument("--model", help="with --test: try this model instead of the configured one")
@@ -807,7 +811,8 @@ def main() -> int:
                  "real runs follow the configuration log")
     # A listing dated before today (Eastern time) is a past date.
     past = args.date is not None and args.date < dt.datetime.now(EASTERN).date()
-    via = args.via or ("claude-code" if past else "api")
+    legacy = past and not args.backfill  # a past date is the legacy survey unless backfilled
+    via = args.via or ("claude-code" if legacy else "api")
     if via == "claude-code" and args.batch:
         ap.error("--batch works only with --via api")
 
@@ -836,7 +841,7 @@ def main() -> int:
                 trial = f"-{cfg['model']}-{cfg.get('effort') or 'default'}"
             day_dir = day_dir / f"test{trial}{'-claude-code' if via == 'claude-code' else ''}"
             tables, reports = day_dir / "tables", day_dir / "reports"
-        portfolios = load_participants(args.portfolios, legacy=past and not args.test)
+        portfolios = load_participants(args.portfolios, legacy=legacy and not args.test)
         if via == "claude-code":
             own = [w.strip() for w in os.environ.get("MAPHUB_OWN_PARTICIPANTS", "").split(",") if w.strip()]
             if not own:
@@ -890,7 +895,7 @@ def main() -> int:
         for path in write_tables(tables, date, papers, scores):
             log(f"Wrote {path}")
         publish_roster(tables, args.portfolios, date)
-        if past and not args.test:
+        if legacy and not args.test:
             log("No reports for a past date; the report cache holds recent days only.")
         else:
             write_reports(reports, date, papers, scores, cfg)

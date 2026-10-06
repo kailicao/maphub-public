@@ -10,7 +10,7 @@
 # kailicao/maphub-portfolios only, with read and write access to its contents
 # (write for the report cache on its "reports" branch).
 #
-# The schedule is off until a manual run has worked: then uncomment it.
+# Scheduled runs started on Oct 6, 2026, after a successful manual run.
 # Run logs are public; the scorer logs counts and pseudonyms, never portfolio text.
 
 name: Daily table
@@ -32,12 +32,12 @@ on:
         description: "Score 5 astro-ph and 5 cs.AI papers only; commit nothing"
         type: boolean
         default: false
-  # schedule:
-  #   # Monday to Friday at 06:00 UTC (2:00 AM ET in summer, 1:00 AM in winter),
-  #   # five or six hours after arXiv's 20:00 ET announcements, and at 12:00 UTC
-  #   # as a retry for a late announcement. The scorer skips a listing already
-  #   # in the tables, so the retry costs nothing when there is nothing new.
-  #   - cron: "0 6,12 * * 1-5"
+  schedule:
+    # Monday to Friday at 06:00 UTC (2:00 AM ET in summer, 1:00 AM in winter),
+    # five or six hours after arXiv's 20:00 ET announcements, and at 12:00 UTC
+    # as a retry for a late announcement. The scorer skips a listing already
+    # in the tables, so the retry costs nothing when there is nothing new.
+    - cron: "0 6,12 * * 1-5"
 
 permissions:
   contents: write

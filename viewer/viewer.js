@@ -70,7 +70,8 @@ async function fetchPaperInfo(ids) {
   const batches = [];
   for (let i = 0; i < ids.length; i += SEARCH_BATCH) batches.push(ids.slice(i, i + SEARCH_BATCH));
   await Promise.all(batches.map((part) => keep(`${DATACITE}?${new URLSearchParams({
-    query: `doi:(${part.map((id) => `10.48550/arxiv.${id}`).join(" OR ")})`,
+    // Old IDs (astro-ph/0601234) contain a slash, which the search syntax needs escaped.
+    query: `doi:(${part.map((id) => `10.48550/arxiv.${id.replace("/", "\\/")}`).join(" OR ")})`,
     "page[size]": String(part.length),
     "fields[dois]": DATACITE_FIELDS,
   })}`, (json) => json.data)));
@@ -78,6 +79,13 @@ async function fetchPaperInfo(ids) {
   await Promise.all(ids.filter((id) => !info[id]).map((id) => keep(
     `${DATACITE}/10.48550/arxiv.${id}?fields[dois]=${DATACITE_FIELDS}`, (json) => [json.data])));
   return info;
+}
+
+// The folder supplies the ID month: "02245" -> "2610.02245", and old IDs
+// stored as archive_number: "astro-ph_234" -> "astro-ph/0601234".
+function fullId(yymm, row) {
+  const old = row.split("_");
+  return old.length === 2 ? `${old[0]}/${yymm}${old[1]}` : `${yymm}.${row}`;
 }
 
 async function loadDay(date, files) {
@@ -88,7 +96,7 @@ async function loadDay(date, files) {
     const yymm = file.split("/").at(-2);
     return { yymm, rows: await parquetReadObjects({ file: await resp.arrayBuffer() }) };
   }));
-  const info = await fetchPaperInfo(tables.flatMap(({ yymm, rows }) => rows.map((r) => `${yymm}.${r.id}`)));
+  const info = await fetchPaperInfo(tables.flatMap(({ yymm, rows }) => rows.map((r) => fullId(yymm, r.id))));
   // A month-boundary date has two files; merge them.
   const people = [...new Set(tables.flatMap((t) => t.rows.length ? Object.keys(t.rows[0]) : []))]
     .filter((k) => k !== "id").sort();
@@ -96,7 +104,7 @@ async function loadDay(date, files) {
   const papers = [];
   for (const { yymm, rows } of tables) {
     for (const row of rows) {
-      const id = `${yymm}.${row.id}`;
+      const id = fullId(yymm, row.id);
       papers.push({ id, missing: !info[id], ...(info[id] ?? { title: "(title unavailable)", authors: [], n_authors: 0, primary: "" }) });
       for (const who of people) {
         if (row[who] != null) score.set(`${id}|${who}`, Number(row[who]));

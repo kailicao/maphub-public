@@ -26,7 +26,7 @@ tables/
   index.json                 the dates that have tables
 ```
 
-Each file has one row per paper: an `id` column holding the part of the arXiv ID after the dot (the folder supplies the month), then one `uint8` column of scores per participant. A date at a month boundary can have two files, one per ID month. Parquet opens in Python, R, Julia, MATLAB and DuckDB, for example:
+Each file has one row per paper: an `id` column holding the part of the arXiv ID the folder does not supply (`02245` for 2610.02245; `astro-ph_234` for the old-style astro-ph/0601234), then one `uint8` column of scores per participant. A date at a month boundary can have two files, one per ID month. Parquet opens in Python, R, Julia, MATLAB and DuckDB, for example:
 
 ```python
 import pandas as pd

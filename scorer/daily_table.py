@@ -7,13 +7,18 @@ Design: lsap-meth/midas-arxiv-preprint-hub.md (section "Daily table").
     python scorer/daily_table.py 2026-10-05     # same, but check the date first
     python scorer/daily_table.py --test         # 5 astro-ph + 5 cs.AI papers, outputs in the work dir
     python scorer/daily_table.py --batch        # Message Batches API (half price, slower)
+    python scorer/daily_table.py 2025-03-04     # a past date: Claude Code, listed columns only
 
 Steps:
-  1. Fetch. The arXiv API cannot query by announcement date, so the day's new
-     submissions (no cross-lists, no replacements) are read from arXiv's RSS
-     feed, which only shows the current listing; their metadata then comes from
-     the arXiv API in one query. The papers are saved in the work dir, so a
-     rerun on a later day still has them.
+  1. Fetch. The arXiv API cannot query by announcement date, so the current
+     listing's new submissions (no cross-lists, no replacements) are read from
+     arXiv's RSS feed, and their metadata then comes from the arXiv API in one
+     query. A past listing is rebuilt from the API by submission time: the
+     window between two 14:00 ET deadlines that the listing covers. Papers held for
+     moderation are placed by submission, not announcement: they are missing
+     from the listing that announced them (4 of 345 on Oct 6, 2026) and
+     appear in their submission window's listing instead. The papers are saved in the work dir, so a rerun still
+     has them.
   2. Score. One Claude request per participant per chunk of about 50 papers.
      The instructions and papers come first and are cached across participants.
   3. Write. One Parquet file per ID month, the viewer's index.json and each
@@ -24,9 +29,20 @@ Steps:
 Participants are the folders of the portfolios repo that hold a portfolio.md;
 the folder name is the participant's pseudonym and column name.
 
-Credentials: ANTHROPIC_API_KEY from the environment (the GitHub Action passes
-the repo secret) or, failing that, from the repo root's .env file, which
-.gitignore keeps out of git. Exit codes: 0 done, 1 error, 2 incomplete (rerun to resume).
+Two ways to send requests (--via):
+  api          The Claude API, with ANTHROPIC_API_KEY from the environment (the
+               GitHub Action passes the repo secret) or the repo root's .env
+               file, which .gitignore keeps out of git. Default for the
+               current listing.
+  claude-code  Claude Code's print mode (claude -p), on KC's seat on the
+               Avestruz Lab's Team plan. Only the participants named in
+               MAPHUB_OWN_PARTICIPANTS (in .env, comma-separated) are scored:
+               the columns that plan may be used for (KC's and the lab's for
+               now). Default for past dates (the legacy survey).
+               The API key is withheld from Claude Code, so it never bills
+               the API account.
+
+Exit codes: 0 done, 1 error, 2 incomplete (rerun to resume).
 """
 
 from __future__ import annotations
@@ -39,12 +55,15 @@ import math
 import os
 import re
 import sys
+import subprocess
+import tempfile
 import time
 import urllib.error
 import urllib.parse
 import urllib.request
 import xml.etree.ElementTree as ET
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
 import anthropic
 import pyarrow as pa
@@ -60,6 +79,11 @@ ARXIV_PAUSE = 3.0  # arXiv API terms: at most one request every 3 seconds
 USER_AGENT = "MapHub/0.1 (MIDAS arXiv Preprint Hub)"
 
 FIRST_YEAR = 1991  # table folders are 3-year spans aligned with arXiv's first year
+EASTERN = ZoneInfo("America/New_York")
+DEADLINE_HOUR = 14  # arXiv's daily submission deadline, 14:00 ET (unverified for older years)
+LISTING_CATEGORIES = ["astro-ph", "astro-ph.CO", "astro-ph.EP", "astro-ph.GA", "astro-ph.HE",
+                      "astro-ph.IM", "astro-ph.SR", "cs.AI"]
+PAGE = 500  # results per arXiv API page
 REPORT_DAYS = 5  # the report cache keeps the last 5 announcement days
 REPORT_TOP = 5
 REPORT_ABOVE = 90
@@ -67,6 +91,16 @@ MAX_TOKENS = 16000
 SCORE_ATTEMPTS = 3  # direct mode: tries per chunk when the reply is unusable
 BATCH_ROUNDS = 3  # batch mode: resubmissions of failed requests
 BATCH_POLL = 60
+CLAUDE_CODE_TIMEOUT = 900  # seconds per request through Claude Code
+CLAUDE_CODE_SYSTEM = "You score arXiv papers for relevance to a research portfolio. Reply with JSON only."
+SCORES_SCHEMA = json.dumps({
+    "type": "object",
+    "properties": {"scores": {"type": "array", "items": {
+        "type": "object",
+        "properties": {"id": {"type": "string"}, "score": {"type": "integer"}},
+        "required": ["id", "score"]}}},
+    "required": ["scores"],
+})
 
 NS = {
     "atom": "http://www.w3.org/2005/Atom",
@@ -163,11 +197,41 @@ def http_get(url: str) -> bytes:
 
 
 def bare_id(raw: str) -> str:
-    """'oai:arXiv.org:2610.02245v1' or 'http://arxiv.org/abs/2610.02245v1' -> '2610.02245'."""
-    m = re.search(r"(\d{4}\.\d{4,5})(v\d+)?$", raw.strip())
-    if not m:
-        raise MapHubError(f"unexpected arXiv ID {raw!r}")
-    return m.group(1)
+    """An arXiv ID without version or prefix.
+
+    'http://arxiv.org/abs/2610.02245v1' -> '2610.02245'; old-style IDs (before
+    April 2007) keep their archive, without a subject class:
+    'http://arxiv.org/abs/astro-ph/0601234v2' -> 'astro-ph/0601234',
+    'cs.AI/0601001' -> 'cs/0601001'.
+    """
+    raw = raw.strip()
+    if m := re.search(r"(\d{4}\.\d{4,5})(v\d+)?$", raw):
+        return m.group(1)
+    if m := re.search(r"([a-z-]+)(?:\.[A-Za-z-]+)?/(\d{7})(v\d+)?$", raw):
+        return f"{m.group(1)}/{m.group(2)}"
+    raise MapHubError(f"unexpected arXiv ID {raw!r}")
+
+
+def id_parts(pid: str) -> tuple[str, str]:
+    """(ID month YYMM, the row's ID): the folder supplies the month.
+
+    '2610.02245' -> ('2610', '02245'); 'astro-ph/0601234' -> ('0601',
+    'astro-ph_234'). Old IDs keep their archive, since each archive numbered
+    its papers separately, joined with '_' rather than '/'.
+    """
+    if "/" in pid:
+        archive, number = pid.split("/")
+        return number[:4], f"{archive}_{number[4:]}"
+    yymm, number = pid.split(".")
+    return yymm, number
+
+
+def full_id(yymm: str, row: str) -> str:
+    """The inverse of id_parts."""
+    if "_" in row:
+        archive, number = row.split("_")
+        return f"{archive}/{yymm}{number}"
+    return f"{yymm}.{row}"
 
 
 def clean(text: str | None) -> str:
@@ -190,6 +254,19 @@ def fetch_listing() -> tuple[dt.date, list[str]]:
     return listing_date, sorted(set(ids))
 
 
+def parse_entry(entry) -> dict:
+    """One arXiv API entry -> {id, title, authors, abstract, primary}."""
+    primary = entry.find("arxiv:primary_category", NS)
+    return {
+        "id": bare_id(entry.findtext("atom:id", "", NS)),
+        "title": clean(entry.findtext("atom:title", "", NS)),
+        "authors": [clean(a.findtext("atom:name", "", NS)) for a in entry.findall("atom:author", NS)],
+        "abstract": clean(entry.findtext("atom:summary", "", NS)),
+        "primary": primary.get("term", "") if primary is not None else "",
+        "submitted": entry.findtext("atom:published", "", NS),
+    }
+
+
 def fetch_metadata(ids: list[str]) -> dict[str, dict]:
     """Title, authors, abstract and primary category from the arXiv API."""
     papers: dict[str, dict] = {}
@@ -203,18 +280,8 @@ def fetch_metadata(ids: list[str]) -> dict[str, dict]:
             time.sleep(ARXIV_PAUSE)
             root = ET.fromstring(http_get(f"{API_URL}?{query}"))
             for entry in root.findall("atom:entry", NS):
-                pid = bare_id(entry.findtext("atom:id", "", NS))
-                primary = entry.find("arxiv:primary_category", NS)
-                papers[pid] = {
-                    "id": pid,
-                    "title": clean(entry.findtext("atom:title", "", NS)),
-                    "authors": [
-                        clean(a.findtext("atom:name", "", NS))
-                        for a in entry.findall("atom:author", NS)
-                    ],
-                    "abstract": clean(entry.findtext("atom:summary", "", NS)),
-                    "primary": primary.get("term", "") if primary is not None else "",
-                }
+                paper = parse_entry(entry)
+                papers[paper["id"]] = paper
         todo = [i for i in ids if i not in papers]
         if not todo:
             break
@@ -228,6 +295,66 @@ def listed_here(paper: dict) -> bool:
     return paper["primary"].startswith("astro-ph") or paper["primary"] == "cs.AI"
 
 
+def listing_window(date: dt.date) -> tuple[dt.datetime, dt.datetime]:
+    """The submission window (UTC) of the listing dated `date`.
+
+    A listing dated D (Monday to Friday) is announced the evening before and
+    holds the submissions received between the 14:00 ET deadlines of the two
+    weekdays before D: Tuesday's listing covers Friday 14:00 to Monday 14:00.
+    Holidays, when arXiv skips an announcement and merges windows, are not
+    modelled yet, and the 14:00 deadline is checked only for 2026. Either way
+    the windows tile time, so every paper is scored once; an error only moves
+    some papers to a neighbouring date. Checked against arXiv's catch-up pages:
+    256 of 261 papers on Sep 15, 2026 and 304 of 326 on Aug 4, 2026, every
+    difference a paper held for moderation.
+    """
+    if date.weekday() >= 5:
+        raise MapHubError(f"{date} is a weekend day; arXiv has no listing then")
+
+    def weekday_before(d: dt.date) -> dt.date:
+        d -= dt.timedelta(days=1)
+        while d.weekday() >= 5:
+            d -= dt.timedelta(days=1)
+        return d
+
+    end_day = weekday_before(date)
+    start_day = weekday_before(end_day)
+    at = lambda d: dt.datetime(d.year, d.month, d.day, DEADLINE_HOUR, tzinfo=EASTERN).astimezone(dt.timezone.utc)
+    return at(start_day), at(end_day)
+
+
+def fetch_past_listing(date: dt.date) -> list[dict]:
+    """Rebuild a past listing's new submissions from the arXiv API by submission time."""
+    start, end = listing_window(date)
+    stamp = lambda t: t.strftime("%Y%m%d%H%M")
+    # The API matches whole minutes; a paper at exactly 14:00 can land in either
+    # listing, and is filtered below by its exact time.
+    log(f"Rebuilding the listing dated {date} from the arXiv API: submissions "
+        f"{start.astimezone(EASTERN):%a %Y-%m-%d %H:%M} to {end.astimezone(EASTERN):%a %Y-%m-%d %H:%M} ET")
+    found: dict[str, dict] = {}
+    # One query per category: an OR of several categories loses results on
+    # older dates (128 instead of several hundred for a 2025 listing).
+    for cat in LISTING_CATEGORIES:
+        query = f"cat:{cat} AND submittedDate:[{stamp(start)} TO {stamp(end)}]"
+        for first in range(0, 30000, PAGE):
+            params = urllib.parse.urlencode({"search_query": query, "start": first, "max_results": PAGE,
+                                             "sortBy": "submittedDate", "sortOrder": "ascending"})
+            time.sleep(ARXIV_PAUSE)
+            root = ET.fromstring(http_get(f"{API_URL}?{params}"))
+            entries = root.findall("atom:entry", NS)
+            for entry in entries:
+                paper = parse_entry(entry)
+                found[paper["id"]] = paper
+            total = int(root.findtext("{http://a9.com/-/spec/opensearch/1.1/}totalResults", "0"))
+            if first + PAGE >= total or not entries:
+                break
+    when = lambda p: dt.datetime.fromisoformat(p["submitted"].replace("Z", "+00:00"))
+    papers = sorted((p for p in found.values() if listed_here(p) and start <= when(p) < end),
+                    key=lambda p: p["id"])
+    log(f"  {len(found)} papers in the window, {len(papers)} with astro-ph or cs.AI as primary")
+    return papers
+
+
 def get_papers(work: Path, date: dt.date | None) -> tuple[dt.date, list[dict]]:
     """Papers for `date` (default: the current listing), from the work dir if saved."""
     if date is not None:
@@ -235,6 +362,17 @@ def get_papers(work: Path, date: dt.date | None) -> tuple[dt.date, list[dict]]:
         if saved.exists():
             log(f"Papers for {date}: loaded from {saved}")
             return date, read_json(saved)
+        if date < dt.datetime.now(EASTERN).date():
+            papers = fetch_past_listing(date)
+            if not papers:
+                raise MapHubError(f"no new submissions found for the listing dated {date} "
+                                  "(a holiday?)")
+            start, end = listing_window(date)
+            write_json(saved, papers)
+            write_json(saved.with_name("window.json"),
+                       {"source": "arXiv API by submission time", "from_utc": start.isoformat(),
+                        "to_utc": end.isoformat()})
+            return date, papers
     log(f"Fetching the current listing from {RSS_URL}")
     listing_date, ids = fetch_listing()
     if date is not None and date != listing_date:
@@ -331,7 +469,10 @@ def parse_scores(message, chunk: list[dict]) -> dict[str, int]:
         raise MapHubError(f"refused (category: {category})")
     if message.stop_reason == "max_tokens":
         raise MapHubError("reply cut off at max_tokens")
-    text = "".join(b.text for b in message.content if b.type == "text")
+    return scores_from_text("".join(b.text for b in message.content if b.type == "text"), chunk)
+
+
+def scores_from_text(text: str, chunk: list[dict]) -> dict[str, int]:
     wanted = {p["id"] for p in chunk}
     scores: dict[str, int] = {}
     for obj in re.findall(r"\{[^{}]*\}", text):
@@ -392,6 +533,63 @@ def score_direct(client, cfg, jobs, prefixes, portfolios, scores_dir) -> None:
             break
 
 
+def score_claude_code(cfg, jobs, prefixes, portfolios, scores_dir) -> None:
+    """One request at a time through Claude Code's print mode (KC's Team-plan seat).
+
+    Tools are off, settings and CLAUDE.md files are not loaded (it runs in an
+    empty folder), and the API key is withheld, so the request is the scoring
+    prompt alone, counted against the seat's usage limits. On a failure that persists (for
+    example a usage limit), it stops; a rerun resumes from the saved chunks.
+    """
+    env = {k: v for k, v in os.environ.items()
+           if k not in ("ANTHROPIC_API_KEY", "ANTHROPIC_AUTH_TOKEN")}
+    command = ["claude", "-p", "--model", cfg["model"], "--tools", "",
+               "--system-prompt", CLAUDE_CODE_SYSTEM, "--output-format", "json",
+               "--json-schema", SCORES_SCHEMA, "--no-session-persistence", "--setting-sources", ""]
+    if cfg.get("effort"):
+        command += ["--effort", cfg["effort"]]
+    with tempfile.TemporaryDirectory() as empty:
+        for n, (who, k, chunk) in enumerate(jobs, 1):
+            text = prefixes[k] + f"<portfolio>\n{portfolios[who]}\n</portfolio>"
+            for attempt in range(1, SCORE_ATTEMPTS + 1):
+                start = time.monotonic()
+                try:
+                    run = subprocess.run(command, input=text, capture_output=True, text=True,
+                                         cwd=empty, env=env, timeout=CLAUDE_CODE_TIMEOUT)
+                    out = json.loads(run.stdout) if run.stdout.strip() else {}
+                    if run.returncode != 0 or out.get("is_error") or out.get("subtype") != "success":
+                        raise MapHubError(str(out.get("result") or run.stderr.strip() or
+                                              f"exit {run.returncode}")[:300])
+                    reply = (json.dumps(out["structured_output"]) if out.get("structured_output")
+                             else out.get("result", ""))
+                    scores = scores_from_text(reply, chunk)
+                except FileNotFoundError:
+                    raise MapHubError("the claude command was not found; install Claude Code")
+                except (MapHubError, json.JSONDecodeError, subprocess.TimeoutExpired) as e:
+                    log(f"  [{n}/{len(jobs)}] {who} chunk {k}: attempt {attempt} failed: {e}")
+                    continue
+                seconds = time.monotonic() - start
+                u = out.get("usage", {})
+                usage = {"input": u.get("input_tokens", 0),
+                         "cache_write": u.get("cache_creation_input_tokens", 0),
+                         "cache_read": u.get("cache_read_input_tokens", 0),
+                         "output": u.get("output_tokens", 0)}
+                write_json(
+                    scores_dir / who / f"chunk{k}.json",
+                    {"ids": [p["id"] for p in chunk], "scores": scores, "usage": usage,
+                     "seconds": round(seconds, 1), "model": cfg["model"], "via": "claude-code",
+                     "api_equivalent_usd": out.get("total_cost_usd")},
+                )
+                log(f"  [{n}/{len(jobs)}] {who} chunk {k}: {len(scores)} scores, {seconds:.0f} s, "
+                    f"tokens in {usage['input']} + cache write {usage['cache_write']} "
+                    f"+ cache read {usage['cache_read']}, out {usage['output']}")
+                break
+            else:
+                log("  Stopping: Claude Code keeps failing (perhaps a usage limit); "
+                    "rerun later to resume.")
+                return
+
+
 def score_batch(client, cfg, jobs, prefixes, portfolios, scores_dir, state: Path) -> None:
     """Submit the remaining jobs as one batch; a rerun picks up a batch already submitted."""
     by_id = {f"{who}__c{k}": (who, k, chunk) for who, k, chunk in jobs}
@@ -442,24 +640,37 @@ def score_batch(client, cfg, jobs, prefixes, portfolios, scores_dir, state: Path
 
 
 def table_path(tables: Path, yymm: str, date: dt.date) -> Path:
-    year = 2000 + int(yymm[:2])  # current-style IDs start in 2007
+    year = (1900 if int(yymm[:2]) >= 91 else 2000) + int(yymm[:2])  # arXiv began in 1991
     span = FIRST_YEAR + 3 * ((year - FIRST_YEAR) // 3)
     return tables / f"{span}-{span + 2}" / yymm / f"{date.isoformat()}.parquet"
 
 
 def write_tables(tables: Path, date: dt.date, papers, scores: dict[str, dict[str, int]]) -> list[Path]:
-    """One Parquet file per ID month: an ID column (number after the dot), then uint8 scores."""
+    """One Parquet file per ID month: an ID column (the part the folder does not
+    imply: '02245', or 'astro-ph_234' for old IDs), then uint8 scores."""
     by_month: dict[str, list[str]] = {}
     for p in papers:
-        yymm, number = p["id"].split(".")
-        by_month.setdefault(yymm, []).append(number)
+        yymm, row = id_parts(p["id"])
+        by_month.setdefault(yymm, []).append(row)
     written = []
-    for yymm, numbers in sorted(by_month.items()):
-        order = sorted(numbers)
+    for yymm, rows in sorted(by_month.items()):
+        order = sorted(rows)
         columns = {"id": pa.array(order, pa.string())}
         for who in sorted(scores):
-            columns[who] = pa.array([scores[who][f"{yymm}.{n}"] for n in order], pa.uint8())
+            columns[who] = pa.array([scores[who][full_id(yymm, n)] for n in order], pa.uint8())
         path = table_path(tables, yymm, date)
+        if path.exists():
+            # Keep the columns of participants not scored in this run, e.g. the
+            # daily job's columns when KC's own column is rescored for a past date.
+            old = pq.read_table(path)
+            if sorted(old.column("id").to_pylist()) != order:
+                raise MapHubError(f"{path} lists different papers; not overwriting it")
+            old_rows = dict(zip(old.column("id").to_pylist(), range(old.num_rows)))
+            for who in old.column_names:
+                if who != "id" and who not in columns:
+                    values = old.column(who).to_pylist()
+                    columns[who] = pa.array([values[old_rows[n]] for n in order], pa.uint8())
+            columns = {"id": columns["id"], **{w: columns[w] for w in sorted(columns) if w != "id"}}
         path.parent.mkdir(parents=True, exist_ok=True)
         tmp = path.with_suffix(".parquet.tmp")
         pq.write_table(pa.table(columns), tmp)
@@ -507,6 +718,7 @@ def summarize(scores_dir: Path, participants) -> None:
     total = {"input": 0, "cache_write": 0, "cache_read": 0, "output": 0}
     seconds = 0.0
     requests = 0
+    equivalent = None
     for who in participants:
         for f in (scores_dir / who).glob("chunk*.json"):
             saved = read_json(f)
@@ -514,9 +726,13 @@ def summarize(scores_dir: Path, participants) -> None:
             for key in total:
                 total[key] += saved["usage"][key]
             seconds += saved["seconds"] or 0
+            if saved.get("api_equivalent_usd") is not None:
+                equivalent = (equivalent or 0) + saved["api_equivalent_usd"]
     log(f"Usage: {requests} requests, {seconds:.0f} s of request time; tokens in "
         f"{total['input']} + cache write {total['cache_write']} + cache read "
-        f"{total['cache_read']}, out {total['output']}")
+        f"{total['cache_read']}, out {total['output']}"
+        + ("" if equivalent is None else
+           f"; Claude Code requests would cost ${equivalent:.2f} on the API"))
 
 
 # ------------------------------------------------------------------------- main
@@ -529,6 +745,8 @@ def main() -> int:
     ap.add_argument("--test", action="store_true",
                     help="score 5 astro-ph and 5 cs.AI papers; outputs go to the work dir")
     ap.add_argument("--batch", action="store_true", help="use the Message Batches API")
+    ap.add_argument("--via", choices=["api", "claude-code"],
+                    help="how to send requests (default: claude-code for a past date, else api)")
     ap.add_argument("--model", help="with --test: try this model instead of the configured one")
     ap.add_argument("--effort", help="with --test: try this effort level ('none' to omit it)")
     ap.add_argument("--portfolios", type=Path, default=ROOT / "maphub-portfolios")
@@ -543,6 +761,11 @@ def main() -> int:
     if (args.model or args.effort) and not args.test:
         ap.error("--model and --effort are only for trials with --test; "
                  "real runs follow the configuration log")
+    # A listing dated before today (Eastern time) is a past date.
+    past = args.date is not None and args.date < dt.datetime.now(EASTERN).date()
+    via = args.via or ("claude-code" if past else "api")
+    if via == "claude-code" and args.batch:
+        ap.error("--batch works only with --via api")
 
     try:
         date, papers = get_papers(args.work, args.date)
@@ -560,17 +783,26 @@ def main() -> int:
                 if args.model:
                     cfg["fallbacks"] = None  # not every model accepts them
                 trial = f"-{cfg['model']}-{cfg.get('effort') or 'default'}"
-            day_dir = day_dir / f"test{trial}"
+            day_dir = day_dir / f"test{trial}{'-claude-code' if via == 'claude-code' else ''}"
             tables, reports = day_dir / "tables", day_dir / "reports"
         portfolios = load_participants(args.portfolios)
+        if via == "claude-code":
+            own = [w.strip() for w in os.environ.get("MAPHUB_OWN_PARTICIPANTS", "").split(",") if w.strip()]
+            if not own:
+                raise MapHubError("set MAPHUB_OWN_PARTICIPANTS in .env (comma-separated pseudonyms): "
+                                  "Claude Code scores only the columns listed there")
+            unknown = [w for w in own if w not in portfolios]
+            if unknown:
+                raise MapHubError(f"no portfolio for {', '.join(unknown)} (MAPHUB_OWN_PARTICIPANTS)")
+            portfolios = {w: portfolios[w] for w in own}
         cfg = {**cfg, "cache": len(portfolios) > 1}
         prompt = PROMPTS[cfg["prompt"]]
         chunks = make_chunks(papers, cfg["chunk_size"])
         prefixes = [papers_prefix(prompt, c) for c in chunks]
         scores_dir = day_dir / "scores"
         log(f"{date}: {len(papers)} papers in {len(chunks)} chunks, {len(portfolios)} "
-            f"participants; {cfg['model']}, effort {cfg.get('effort')}, prompt {cfg['prompt']}"
-            + ("" if cfg["cache"] else "; no caching (one participant)"))
+            f"participants; {cfg['model']}, effort {cfg.get('effort')}, prompt {cfg['prompt']}; "
+            f"via {via}" + ("" if cfg["cache"] or via != "api" else "; no caching (one participant)"))
 
         def done(who: str, k: int) -> bool:
             f = scores_dir / who / f"chunk{k}.json"
@@ -582,7 +814,9 @@ def main() -> int:
         skipped = len(chunks) * len(portfolios) - len(jobs)
         if skipped:
             log(f"Resuming: {skipped} requests already saved, {len(jobs)} to go")
-        if jobs:
+        if jobs and via == "claude-code":
+            score_claude_code(cfg, jobs, prefixes, portfolios, scores_dir)
+        elif jobs:
             client = anthropic.Anthropic()
             if args.batch:
                 score_batch(client, cfg, jobs, prefixes, portfolios, scores_dir,
@@ -602,8 +836,11 @@ def main() -> int:
                 scores[who].update(read_json(scores_dir / who / f"chunk{k}.json")["scores"])
         for path in write_tables(tables, date, papers, scores):
             log(f"Wrote {path}")
-        write_reports(reports, date, papers, scores, cfg)
-        log(f"Wrote reports to {reports}")
+        if past and not args.test:
+            log("No reports for a past date; the report cache holds recent days only.")
+        else:
+            write_reports(reports, date, papers, scores, cfg)
+            log(f"Wrote reports to {reports}")
         return 0
     except MapHubError as e:
         log(f"Error: {e}")

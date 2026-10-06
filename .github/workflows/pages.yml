@@ -32,6 +32,10 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v7
+        with:
+          # The branch's latest commit, not the one that started the run: when the
+          # daily job calls this workflow, its new table is committed after the start.
+          ref: ${{ github.ref }}
 
       - name: Assemble the site from viewer/ and tables/
         run: |

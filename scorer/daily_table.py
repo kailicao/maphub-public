@@ -700,8 +700,9 @@ def write_tables(tables: Path, date: dt.date, papers, scores: dict[str, dict[str
     return written
 
 
-def publish_roster(tables: Path, portfolios: Path) -> None:
-    """Copy who is active and who is hidden into index.json for the public viewer.
+def publish_roster(tables: Path, portfolios: Path, date: dt.date) -> None:
+    """Copy who is active and who is hidden into index.json for the public viewer,
+    and record which maphub-portfolios commit scored this date.
 
     The tables are never changed when someone pauses or leaves; the viewer
     hides the columns listed as hidden and marks visible ones not listed as active.
@@ -709,6 +710,13 @@ def publish_roster(tables: Path, portfolios: Path) -> None:
     status = read_json(portfolios / "participants.json")["participants"]
     index_path = tables / "index.json"
     index = read_json(index_path) if index_path.exists() else {"dates": {}}
+    commit = subprocess.run(["git", "-C", str(portfolios), "rev-parse", "HEAD"],
+                            capture_output=True, text=True)
+    if commit.returncode == 0:
+        # Any score can be traced to the portfolio version behind it.
+        versions = index.setdefault("portfolio_versions", {})
+        versions[date.isoformat()] = commit.stdout.strip()
+        index["portfolio_versions"] = dict(sorted(versions.items()))
     index["participants"] = {
         "active": sorted(w for w, e in status.items() if e.get("status") == "active" and not e.get("hidden")),
         "hidden": sorted(w for w, e in status.items() if e.get("hidden")),
@@ -805,6 +813,13 @@ def main() -> int:
 
     try:
         date, papers = get_papers(args.work, args.date)
+        if args.date is None and not args.test:
+            # Runs are repeated in case arXiv announces late; a listing already in
+            # the tables is not scored again (an explicit date forces a rescore).
+            index_path = args.tables / "index.json"
+            if index_path.exists() and date.isoformat() in read_json(index_path)["dates"]:
+                log(f"The current listing ({date}) is already scored; nothing to do.")
+                return 0
         cfg = load_config(args.config, date)
         day_dir = args.work / date.isoformat()
         tables, reports = args.tables, args.reports
@@ -874,7 +889,7 @@ def main() -> int:
                 scores[who].update(read_json(scores_dir / who / f"chunk{k}.json")["scores"])
         for path in write_tables(tables, date, papers, scores):
             log(f"Wrote {path}")
-        publish_roster(tables, args.portfolios)
+        publish_roster(tables, args.portfolios, date)
         if past and not args.test:
             log("No reports for a past date; the report cache holds recent days only.")
         else:

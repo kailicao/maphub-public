@@ -1,0 +1,138 @@
+# Score the day's arXiv listing, commit the table, publish the viewer and
+# refresh the report cache.
+#
+# Two routes, chosen by the repository variable MAPHUB_VIA (or the run's input):
+#   api          the Claude API; secret ANTHROPIC_API_KEY (a key with a spend limit)
+#   claude-code  Claude Code on KC's ALCCA Team-plan seat; secret
+#                CLAUDE_CODE_OAUTH_TOKEN (from `claude setup-token`), and the
+#                variable MAPHUB_OWN_PARTICIPANTS listing the columns it may score
+# Both routes need the secret PORTFOLIOS_TOKEN: a fine-grained token for
+# kailicao/maphub-portfolios only, with read and write access to its contents
+# (write for the report cache on its "reports" branch).
+#
+# The schedule is off until a manual run has worked: then uncomment it.
+# Run logs are public; the scorer logs counts and pseudonyms, never portfolio text.
+
+name: Daily table
+
+on:
+  workflow_dispatch:
+    inputs:
+      date:
+        description: "Listing date YYYY-MM-DD (empty: the current listing)"
+        required: false
+        default: ""
+      via:
+        description: "Route (default: the MAPHUB_VIA variable, else api)"
+        required: false
+        default: "default"
+        type: choice
+        options: ["default", "api", "claude-code"]
+      test:
+        description: "Score 5 astro-ph and 5 cs.AI papers only; commit nothing"
+        type: boolean
+        default: false
+  # schedule:
+  #   # Monday to Friday at 06:00 UTC (2:00 AM ET in summer, 1:00 AM in winter),
+  #   # five or six hours after arXiv's 20:00 ET announcements, and at 12:00 UTC
+  #   # as a retry for a late announcement. The scorer skips a listing already
+  #   # in the tables, so the retry costs nothing when there is nothing new.
+  #   - cron: "0 6,12 * * 1-5"
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+concurrency:
+  group: daily-table
+  cancel-in-progress: false
+
+jobs:
+  score:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    outputs:
+      changed: ${{ steps.commit.outputs.changed }}
+    env:
+      VIA: ${{ (inputs.via != '' && inputs.via != 'default') && inputs.via || vars.MAPHUB_VIA || 'api' }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Check out the portfolios
+        uses: actions/checkout@v7
+        with:
+          repository: kailicao/maphub-portfolios
+          token: ${{ secrets.PORTFOLIOS_TOKEN }}
+          path: maphub-portfolios
+
+      - name: Check out the report cache (empty on the first run)
+        env:
+          TOKEN: ${{ secrets.PORTFOLIOS_TOKEN }}
+        run: |
+          git clone -q --depth 1 --branch reports \
+            "https://x-access-token:${TOKEN}@github.com/kailicao/maphub-portfolios.git" reports-cache \
+            || mkdir -p reports-cache
+          rm -rf reports-cache/.git
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.13"
+
+      - name: Install the scorer's requirements
+        run: pip install -r scorer/requirements.txt
+
+      - name: Install Claude Code
+        if: env.VIA == 'claude-code'
+        run: npm install -g @anthropic-ai/claude-code
+
+      - name: Score
+        env:
+          ANTHROPIC_API_KEY: ${{ env.VIA == 'api' && secrets.ANTHROPIC_API_KEY || '' }}
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ env.VIA == 'claude-code' && secrets.CLAUDE_CODE_OAUTH_TOKEN || '' }}
+          MAPHUB_OWN_PARTICIPANTS: ${{ vars.MAPHUB_OWN_PARTICIPANTS }}
+          DATE: ${{ inputs.date }}
+          TEST: ${{ inputs.test && '--test' || '' }}
+        # --via is always explicit: a rerun for yesterday counts as a past date,
+        # which would otherwise default to Claude Code.
+        run: python scorer/daily_table.py $DATE $TEST --via "$VIA" --reports reports-cache
+
+      - name: Commit the table
+        id: commit
+        if: ${{ !inputs.test }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add tables
+          if git diff --cached --quiet; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          day=$(git diff --cached --name-only | grep -o '[0-9]\{4\}-[0-9]\{2\}-[0-9]\{2\}\.parquet' | head -1)
+          git commit -q -m "Table for ${day%.parquet} (via $VIA)"
+          git push -q
+          echo "changed=true" >> "$GITHUB_OUTPUT"
+
+      - name: Replace the report cache with one fresh commit
+        if: ${{ !inputs.test }}
+        env:
+          TOKEN: ${{ secrets.PORTFOLIOS_TOKEN }}
+        working-directory: reports-cache
+        run: |
+          [ -n "$(ls -A)" ] || exit 0
+          git init -q -b reports
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -q -m "Reports for the last 5 announcement days"
+          git push -q --force \
+            "https://x-access-token:${TOKEN}@github.com/kailicao/maphub-portfolios.git" reports
+
+  publish:
+    needs: score
+    if: needs.score.outputs.changed == 'true'
+    uses: ./.github/workflows/pages.yml
+    permissions:
+      contents: read
+      pages: write
+      id-token: write

@@ -3,14 +3,14 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>MapHub</title>
+  <title>MapHub: MIDAS arXiv Preprint Hub</title>
   <meta name="description" content="MIDAS arXiv Preprint Hub: daily heatmaps of new astro-ph and cs.AI papers scored for each participant.">
   <link rel="stylesheet" href="viewer.css">
   <script type="module" src="viewer.js"></script>
 </head>
 <body>
   <header class="bar">
-    <h1><a id="home" href="./">MapHub</a></h1>
+    <h1><a id="home" href="./">MapHub</a> <span class="fullname">MIDAS arXiv Preprint Hub</span></h1>
     <nav class="dates" aria-label="Announcement dates">
       <button id="prev" type="button" aria-label="Previous day">‹</button>
       <input id="date" type="date" aria-label="Announcement date" title="Pick a date, or type one and press Enter">
@@ -20,6 +20,19 @@
   </header>
 
   <main>
+    <details class="about">
+      <summary>About MapHub</summary>
+      <p>MapHub ranks each day's new arXiv papers in astrophysics (astro-ph) and artificial intelligence (cs.AI) for a community of researchers and groups, and shows who among them could answer questions about each paper.</p>
+      <ul>
+        <li><strong>Rows</strong> are the papers announced that day; <strong>columns</strong> are participants, shown by pseudonym.</li>
+        <li><strong>Each cell</strong> is a relevance score from 0 to 100. A language model (Claude) assigns it by reading the paper's title, authors and abstract against the participant's research portfolio: 100 = they would have written it, 80 = coauthored it, 60 = would cite it, 30 = may broaden their view, 0 = outside their interests.</li>
+        <li><strong>Select a participant</strong> (column name) to see the papers most relevant to them, and the participants with the most similar interests. <strong>Select a paper</strong> (its title) to see who it matters to most: likely the best people to ask about it. Similarity, r, is the correlation of that day's scores.</li>
+        <li>Hover over a cell for its score, or over an arXiv number for the paper's link. The arrows and the date box move between days; weekends and holidays have no listing.</li>
+      </ul>
+      <p><strong>Participants</strong> are researchers and research groups who have each provided a short research portfolio describing their work; the scores come from these portfolios. Columns carry pseudonyms rather than names. If you would like to join, please email <a href="mailto:kailicao@umich.edu">kailicao@umich.edu</a>.</p>
+      <p>MapHub is a carpentry of the <a href="https://midas.umich.edu/training/postdoctoral-programs/schmidt-ai-in-science-postdoctoral-fellowship/">Eric and Wendy Schmidt AI in Science Postdoctoral Fellowship</a> at the <a href="https://midas.umich.edu/">Michigan Institute for Data and AI in Society (MIDAS)</a>, led by Kaili Cao with teammates Kyle Heyblom and Eva Albalghiti. Its code and daily tables are public on <a href="https://github.com/kailicao/maphub-public">GitHub</a>; titles and authors come from <a href="https://datacite.org/">DataCite</a>, which holds arXiv's DOI records.</p>
+      <p><strong>MapHub is under development.</strong> Its scores come from a language model and can be wrong: treat them as pointers to papers and people, not as judgments of anyone's work. Questions and suggestions are welcome: <a href="mailto:kailicao@umich.edu">kailicao@umich.edu</a>.</p>
+    </details>
     <p id="status" class="status" role="status">Loading…</p>
     <div class="legend" id="legend" hidden>
       <span class="legend-label">Relevance</span>
@@ -34,6 +47,10 @@
       <table id="heatmap"></table>
     </div>
   </main>
+
+  <footer class="foot">
+    Under development · Scores are AI-generated and may be inaccurate · <a href="mailto:kailicao@umich.edu">Contact</a>
+  </footer>
 
   <div id="tip" class="tip" role="tooltip" hidden></div>
 </body>

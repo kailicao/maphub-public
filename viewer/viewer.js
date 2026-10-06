@@ -13,9 +13,11 @@
 
 import { parquetReadObjects } from "https://cdn.jsdelivr.net/npm/hyparquet@1.31.2/+esm";
 
-// Sequential blue ramp, steps 100–700 (light to dark).
-const RAMP = ["#cde2fb", "#b7d3f6", "#9ec5f4", "#86b6ef", "#6da7ec", "#5598e7", "#3987e5",
-  "#2a78d6", "#256abf", "#1c5cab", "#184f95", "#104281", "#0d366b"];
+// Sequential ramps ending in Michigan Blue (#00274c), from score 0 to 100. Low
+// scores fade into the page, so the few high ones stand out. In dark mode the
+// ramp runs from the dark page up to a pale blue instead.
+const RAMP_LIGHT = ["#f3f6fa", "#4f7cb3", "#00274c"];
+const RAMP_DARK = ["#1f2733", "#3f6ba3", "#d3e3f7"];
 const FIRST_DAY = "1991-08-14"; // arXiv's first day; earlier typed dates are ignored
 const URL_DELAY = 500; // ms of hovering over an arXiv ID before its URL pops up
 const DATACITE = "https://api.datacite.org/dois";
@@ -33,15 +35,20 @@ let selection = null;  // {kind: "p" | "paper", key}
 
 // ---------------------------------------------------------------- loading
 
+// DataCite returns some characters as HTML entities ("&gt;"); decode them as
+// plain text (a textarea never runs or renders markup).
+const decoder = document.createElement("textarea");
+const decode = (text) => { decoder.innerHTML = text; return decoder.value; };
+
 // One DataCite record -> [arXiv ID, {title, authors (first three), n_authors, primary}].
 function fromDataCite(record) {
   const a = record.attributes;
   const creators = a.creators ?? [];
-  const name = (c) => (c.givenName && c.familyName ? `${c.givenName} ${c.familyName}` : c.name ?? "");
+  const name = (c) => decode(c.givenName && c.familyName ? `${c.givenName} ${c.familyName}` : c.name ?? "");
   // arXiv lists the primary category first, as "Name (archive.SUB)".
   const subject = (a.subjects ?? []).find((s) => s.subjectScheme === "arXiv");
   return [record.id.replace(/^10\.48550\/arxiv\./i, ""), {
-    title: a.titles?.[0]?.title ?? "",
+    title: decode(a.titles?.[0]?.title ?? ""),
     authors: creators.slice(0, 3).map(name),
     n_authors: creators.length,
     primary: subject?.subject.match(/\(([^()]+)\)\s*$/)?.[1] ?? "",
@@ -155,17 +162,38 @@ const isDark = () => getComputedStyle(document.documentElement).colorScheme.incl
 
 function rgb(hex) { return [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16)); }
 
+const toLinear = (v) => (v /= 255) <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4;
+const toByte = (v) => Math.round(255 * Math.min(1, Math.max(0,
+  v <= 0.0031308 ? 12.92 * v : 1.055 * v ** (1 / 2.4) - 0.055)));
+
+// OKLab, a perceptually even color space, so equal score steps look equal.
+function toOklab(hex) {
+  const [r, g, b] = rgb(hex).map(toLinear);
+  const [l, m, s] = [0.4122214708 * r + 0.5363325363 * g + 0.0514459929 * b,
+    0.2119034982 * r + 0.6806995451 * g + 0.1073969566 * b,
+    0.0883024619 * r + 0.2817188376 * g + 0.6299787005 * b].map(Math.cbrt);
+  return [0.2104542553 * l + 0.7936177850 * m - 0.0040720468 * s,
+    1.9779984951 * l - 2.4285922050 * m + 0.4505937099 * s,
+    0.0259040371 * l + 0.7827717662 * m - 0.8086757660 * s];
+}
+
+function fromOklab([L, A, B]) {
+  const [l, m, s] = [L + 0.3963377774 * A + 0.2158037573 * B,
+    L - 0.1055613458 * A - 0.0638541728 * B,
+    L - 0.0894841775 * A - 1.2914855480 * B].map((v) => v ** 3);
+  return [4.0767416621 * l - 3.3077115913 * m + 0.2309699292 * s,
+    -1.2684380046 * l + 2.6097574011 * m - 0.3413193965 * s,
+    -0.0041960863 * l - 0.7034186147 * m + 1.7076147010 * s];
+}
+
 function scoreColor(s) {
-  // Light mode: low scores recede toward the light surface. Dark mode: the same
-  // ramp reversed, so low scores recede toward the dark surface.
-  const ramp = isDark() ? [...RAMP].reverse() : RAMP;
+  const ramp = (isDark() ? RAMP_DARK : RAMP_LIGHT).map(toOklab);
   const t = (Math.max(0, Math.min(100, s)) / 100) * (ramp.length - 1);
   const i = Math.min(Math.floor(t), ramp.length - 2);
-  const [a, b] = [rgb(ramp[i]), rgb(ramp[i + 1])];
-  const c = a.map((v, k) => Math.round(v + (b[k] - v) * (t - i)));
-  const lum = c.map((v) => { v /= 255; return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4; });
-  const L = 0.2126 * lum[0] + 0.7152 * lum[1] + 0.0722 * lum[2];
-  return { bg: `rgb(${c.join(",")})`, fg: L > 0.3 ? "#0b0b0b" : "#ffffff" };
+  const linear = fromOklab(ramp[i].map((v, k) => v + (ramp[i + 1][k] - v) * (t - i)));
+  const L = 0.2126 * linear[0] + 0.7152 * linear[1] + 0.0722 * linear[2];
+  // Dark or white text, whichever contrasts more (they tie near luminance 0.18).
+  return { bg: `rgb(${linear.map(toByte).join(",")})`, fg: L > 0.179 ? "#000000" : "#ffffff" };
 }
 
 function paintLegend() {
@@ -194,7 +222,7 @@ function render() {
   table.replaceChildren();
 
   const head = el("tr", {},
-    el("th", { scope: "col" }, "arXiv"),
+    el("th", { scope: "col", class: "id-head" }, "arXiv"),
     el("th", { scope: "col" }, "Paper"),
     paperSim ? el("th", { scope: "col", class: "sim-head", title: "Similarity to the selected paper" }, "r") : null,
     ...people.map((who) => el("th", { scope: "col", class: "who" + (selection?.kind === "p" && selection.key === who ? " selected" : "") },
@@ -209,7 +237,10 @@ function render() {
       el("td", { class: "id" }, el("a", { href: `https://arxiv.org/abs/${p.id}`, target: "_blank", rel: "noopener", "data-url": `https://arxiv.org/abs/${p.id}` }, p.id)),
       el("td", { class: "paper" },
         el("button", { type: "button", class: "title", "data-paper": p.id }, p.title),
-        el("div", { class: "authors" }, [authors, p.primary].filter(Boolean).join(" · "))),
+        el("div", { class: "authors" },
+          // On narrow screens the arXiv column is hidden and the ID shows here instead.
+          el("a", { class: "id-inline", href: `https://arxiv.org/abs/${p.id}`, target: "_blank", rel: "noopener", "data-url": `https://arxiv.org/abs/${p.id}` }, p.id),
+          el("span", { class: "byline" }, [authors, p.primary].filter(Boolean).join(" · ")))),
       paperSim ? el("td", { class: "sim" }, fmt(paperSim.get(p.id))) : null);
     for (const who of people) {
       const s = get(p.id, who);
@@ -226,8 +257,10 @@ function render() {
   const status = $("status");
   status.classList.remove("error");
   if (!selection) {
-    status.textContent = `${day.papers.length} new papers announced ${day.date}, ${day.people.length} participants. ` +
-      "Select a participant or a paper title to reorder.";
+    const when = new Date(`${day.date}T12:00:00Z`).toLocaleDateString("en-US",
+      { weekday: "long", year: "numeric", month: "long", day: "numeric", timeZone: "UTC" });
+    status.textContent = `${when}: ${day.papers.length} new papers in astro-ph and cs.AI, ` +
+      `scored for ${day.people.length} participants. Select a participant or a paper title to reorder.`;
   } else {
     status.textContent = selection.kind === "p"
       ? `Papers by relevance to ${selection.key}; participants by similarity (r) to ${selection.key}.`

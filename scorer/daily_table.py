@@ -839,6 +839,29 @@ def summarize(scores_dir: Path, participants) -> None:
 # ------------------------------------------------------------------------- main
 
 
+def write_commit_message(args, date, cfg, via, columns, n_papers, n_skipped) -> None:
+    """Write the commit message for the table just written, to .work/commit-message.txt.
+
+    The tables carry no provenance themselves; the commit that adds or changes a
+    table records which portfolios, configuration and columns produced it, so
+    `git log -- <table>` gives each table's full history. The daily workflow
+    commits with this message; locally, use `git commit -F .work/commit-message.txt`.
+    """
+    head = subprocess.run(["git", "-C", str(args.portfolios), "rev-parse", "--short", "HEAD"],
+                          capture_output=True, text=True).stdout.strip() or "unknown"
+    lines = [f"Table for {date.isoformat()} (via {via})", "",
+             f"Portfolios: maphub-portfolios {head}",
+             f"Configuration: entry effective {cfg['effective']} ({cfg['model']}, "
+             f"effort {cfg.get('effort') or 'default'}, prompt {cfg['prompt']})",
+             f"Columns: {', '.join(columns)}",
+             f"Papers: {n_papers}" + (f" ({n_skipped} already scored on another date, left out)"
+                                      if n_skipped else "")]
+    path = args.work / "commit-message.txt"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    log(f"Commit message written to {path}")
+
+
 def rebuild_reports(args) -> int:
     """Rebuild one date's reports from its table: no scoring, and no Claude requests,
     so a backfilled or locally scored day can join the report cache."""
@@ -933,6 +956,7 @@ def main() -> int:
         # listing uses, and is attributed to, the configuration of its run.
         cfg = load_config(args.config, dt.datetime.now(EASTERN).date())
         day_dir = args.work / date.isoformat()
+        dupes: set[str] = set()
         if not args.test:
             check_portfolios(args.portfolios)
             dupes = scored_elsewhere(args.tables, date, papers)
@@ -1002,6 +1026,8 @@ def main() -> int:
         for path in write_tables(tables, date, papers, scores):
             log(f"Wrote {path}")
         publish_roster(tables, args.portfolios)
+        if not args.test:
+            write_commit_message(args, date, cfg, via, sorted(scores), len(papers), len(dupes))
         if legacy and not args.test:
             log("No reports for a past date; the report cache holds recent days only.")
         else:

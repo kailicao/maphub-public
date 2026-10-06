@@ -36,7 +36,7 @@ df = pd.read_parquet("tables/2024-2026/2610/2026-10-06.parquet")
 
 ## Configuration log
 
-[`config-log.json`](config-log.json) records each change to the scoring setup with the date it takes effect: model, effort, prompt version, input (abstract only or more), listing (new submissions only or extended) and chunk size. Entries apply by the date a table is scored, not the listing it covers, so a table's commit time in this repository identifies both the configuration and the portfolio versions behind it. A rescored table replaces the old one, and git keeps the earlier version.
+[`config-log.json`](config-log.json) records each change to the scoring setup with the date it takes effect: model, effort, prompt version, input (abstract only or more), listing (new submissions only or extended) and chunk size. Entries apply by the date a table is scored, not the listing it covers. Each commit that adds or changes a table names, in its message, the portfolios commit, the configuration entry and the columns behind it, so `git log -- <table>` gives the table's history. A rescored table replaces the old one, and git keeps the earlier version.
 
 ## Repository layout
 

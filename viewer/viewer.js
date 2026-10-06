@@ -32,6 +32,10 @@ const requested = match ? match[2] : null;
 
 let day = null;        // {date, papers: [{id, title, authors, n_authors, primary}], people: [...], score: Map}
 let selection = null;  // {kind: "p" | "paper", key}
+// From index.json: who is active, and whose columns are hidden. The tables keep
+// every column; hiding happens here. Without the lists, everyone counts as active.
+let roster = { active: null, hidden: [] };
+const isActive = (who) => !roster.active || roster.active.includes(who);
 
 // ---------------------------------------------------------------- loading
 
@@ -40,16 +44,34 @@ let selection = null;  // {kind: "p" | "paper", key}
 const decoder = document.createElement("textarea");
 const decode = (text) => { decoder.innerHTML = text; return decoder.value; };
 
+// "Rønnow", "Henrik M." -> "Ronnow, H M", as arXiv's listings write author searches.
+function authorQuery(family, given) {
+  const plain = (t) => t.normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
+  const initials = plain(given).split(/[\s.]+/).filter(Boolean).map((part) => part[0].toUpperCase());
+  return [plain(family), initials.join(" ")].filter(Boolean).join(", ");
+}
+
+// arXiv's author search within the paper's archive (astro-ph, cs, ...).
+function authorUrl(query, primary) {
+  const archive = (primary || "").split(".")[0];
+  const params = new URLSearchParams({ searchtype: "author", query });
+  return `https://arxiv.org/search/${archive ? archive + "?" : "?"}${params}`;
+}
+
 // One DataCite record -> [arXiv ID, {title, authors (first three), n_authors, primary}].
 function fromDataCite(record) {
   const a = record.attributes;
   const creators = a.creators ?? [];
   const name = (c) => decode(c.givenName && c.familyName ? `${c.givenName} ${c.familyName}` : c.name ?? "");
+  // The search arXiv's own listings link to: family name and initials.
+  const family = (c) => decode(c.familyName ?? (c.name?.includes(",") ? c.name.split(",")[0] : ""));
+  const given = (c) => decode(c.givenName ?? (c.name?.includes(",") ? c.name.split(",")[1] : ""));
+  const author = (c) => ({ name: name(c), query: c.nameType === "Organizational" || !family(c) ? null : authorQuery(family(c), given(c)) });
   // arXiv lists the primary category first, as "Name (archive.SUB)".
   const subject = (a.subjects ?? []).find((s) => s.subjectScheme === "arXiv");
   return [record.id.replace(/^10\.48550\/arxiv\./i, ""), {
     title: decode(a.titles?.[0]?.title ?? ""),
-    authors: creators.slice(0, 3).map(name),
+    authors: creators.slice(0, 3).map(author),
     n_authors: creators.length,
     primary: subject?.subject.match(/\(([^()]+)\)\s*$/)?.[1] ?? "",
   }];
@@ -99,7 +121,7 @@ async function loadDay(date, files) {
   const info = await fetchPaperInfo(tables.flatMap(({ yymm, rows }) => rows.map((r) => fullId(yymm, r.id))));
   // A month-boundary date has two files; merge them.
   const people = [...new Set(tables.flatMap((t) => t.rows.length ? Object.keys(t.rows[0]) : []))]
-    .filter((k) => k !== "id").sort();
+    .filter((k) => k !== "id" && !roster.hidden.includes(k)).sort();
   const score = new Map(); // `${paperId}|${person}` -> 0..100
   const papers = [];
   for (const { yymm, rows } of tables) {
@@ -233,14 +255,23 @@ function render() {
     el("th", { scope: "col", class: "id-head" }, "arXiv"),
     el("th", { scope: "col" }, "Paper"),
     paperSim ? el("th", { scope: "col", class: "sim-head", title: "Similarity to the selected paper" }, "r") : null,
-    ...people.map((who) => el("th", { scope: "col", class: "who" + (selection?.kind === "p" && selection.key === who ? " selected" : "") },
-      el("button", { type: "button", "data-person": who, title: `Select ${who}` }, who),
+    ...people.map((who) => el("th", { scope: "col", class: "who" + (selection?.kind === "p" && selection.key === who ? " selected" : "") + (isActive(who) ? "" : " inactive") },
+      el("button", { type: "button", "data-person": who,
+        title: isActive(who) ? `Select ${who}` : `Select ${who} (no longer active; scores up to when they paused or left)` }, who),
       personSim ? el("span", { class: "r", title: `Similarity to ${selection.key}` }, fmt(personSim.get(who))) : null)));
   table.append(el("thead", {}, head));
 
   const body = el("tbody");
   for (const p of papers) {
-    const authors = p.authors.join(", ") + (p.n_authors > p.authors.length ? " et al." : "");
+    // Each name links to arXiv's author search; the rest is plain text.
+    const byline = [];
+    p.authors.forEach((a, i) => {
+      if (i) byline.push(", ");
+      byline.push(a.query ? el("a", { class: "author", href: authorUrl(a.query, p.primary), target: "_blank", rel: "noopener",
+        title: `arXiv papers by ${a.query}` }, a.name) : a.name);
+    });
+    if (p.n_authors > p.authors.length) byline.push(" et al.");
+    if (p.primary) byline.push(`${byline.length ? " · " : ""}${p.primary}`);
     const tr = el("tr", { class: selection?.kind === "paper" && selection.key === p.id ? "selected" : "" },
       el("td", { class: "id" }, el("a", { href: `https://arxiv.org/abs/${p.id}`, target: "_blank", rel: "noopener", "data-url": `https://arxiv.org/abs/${p.id}` }, p.id)),
       el("td", { class: "paper" },
@@ -248,7 +279,7 @@ function render() {
         el("div", { class: "authors" },
           // On narrow screens the arXiv column is hidden and the ID shows here instead.
           el("a", { class: "id-inline", href: `https://arxiv.org/abs/${p.id}`, target: "_blank", rel: "noopener", "data-url": `https://arxiv.org/abs/${p.id}` }, p.id),
-          el("span", { class: "byline" }, [authors, p.primary].filter(Boolean).join(" · ")))),
+          el("span", { class: "byline" }, ...byline))),
       paperSim ? el("td", { class: "sim" }, fmt(paperSim.get(p.id))) : null);
     for (const who of people) {
       const s = get(p.id, who);
@@ -395,6 +426,7 @@ async function main() {
       "and a day's table appears only after that day's listing is scored.");
   }
   try {
+    roster = { active: index.participants?.active ?? null, hidden: index.participants?.hidden ?? [] };
     day = await loadDay(date, index.dates[date]);
   } catch (e) {
     return fail(`Could not load the table for ${date} (${e.message}).`);

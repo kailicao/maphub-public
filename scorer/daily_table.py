@@ -404,10 +404,20 @@ def test_sample(papers: list[dict], per_listing: int = 5) -> list[dict]:
 # ------------------------------------------------------------------------ score
 
 
-def load_participants(folder: Path) -> dict[str, str]:
-    """Pseudonym -> portfolio text, for each participant folder with a portfolio.md."""
+def load_participants(folder: Path, legacy: bool = False) -> dict[str, str]:
+    """Pseudonym -> portfolio text, for the participants to score.
+
+    participants.json in the portfolios repo gives each participant's status:
+    only "active" ones are scored, and for a past date (legacy) only those who
+    opted in to the legacy survey. A portfolio folder with no entry there is
+    skipped with a warning, so a new portfolio never breaks the daily run.
+    """
     if not folder.is_dir():
         raise MapHubError(f"portfolio folder {folder} not found")
+    status_file = folder / "participants.json"
+    if not status_file.is_file():
+        raise MapHubError(f"{status_file} not found; it lists each participant's status")
+    status = read_json(status_file)["participants"]
     found = {}
     for sub in sorted(folder.iterdir()):
         portfolio = sub / "portfolio.md"
@@ -415,9 +425,19 @@ def load_participants(folder: Path) -> dict[str, str]:
             continue
         if not re.fullmatch(r"[A-Za-z0-9_-]{1,40}", sub.name):
             raise MapHubError(f"pseudonym {sub.name!r} must match [A-Za-z0-9_-]{{1,40}}")
+        entry = status.get(sub.name)
+        if entry is None:
+            log(f"Warning: {sub.name} has a portfolio but no entry in participants.json; not scored")
+            continue
+        if entry.get("status") != "active" or (legacy and not entry.get("legacy")):
+            continue
         found[sub.name] = portfolio.read_text(encoding="utf-8").strip()
+    for who in status:
+        if not (folder / who / "portfolio.md").is_file() and status[who].get("status") == "active":
+            log(f"Warning: {who} is active in participants.json but has no portfolio.md")
     if not found:
-        raise MapHubError(f"no <pseudonym>/portfolio.md under {folder}")
+        raise MapHubError(f"no participants to score under {folder}"
+                          + (" (none opted in to the legacy survey)" if legacy else ""))
     return found
 
 
@@ -680,6 +700,22 @@ def write_tables(tables: Path, date: dt.date, papers, scores: dict[str, dict[str
     return written
 
 
+def publish_roster(tables: Path, portfolios: Path) -> None:
+    """Copy who is active and who is hidden into index.json for the public viewer.
+
+    The tables are never changed when someone pauses or leaves; the viewer
+    hides the columns listed as hidden and marks visible ones not listed as active.
+    """
+    status = read_json(portfolios / "participants.json")["participants"]
+    index_path = tables / "index.json"
+    index = read_json(index_path) if index_path.exists() else {"dates": {}}
+    index["participants"] = {
+        "active": sorted(w for w, e in status.items() if e.get("status") == "active" and not e.get("hidden")),
+        "hidden": sorted(w for w, e in status.items() if e.get("hidden")),
+    }
+    write_json(index_path, index)
+
+
 def write_index(tables: Path, date: dt.date, written: list[Path]) -> None:
     """index.json: each date's table files, so the viewer knows which days exist."""
     index_path = tables / "index.json"
@@ -785,16 +821,18 @@ def main() -> int:
                 trial = f"-{cfg['model']}-{cfg.get('effort') or 'default'}"
             day_dir = day_dir / f"test{trial}{'-claude-code' if via == 'claude-code' else ''}"
             tables, reports = day_dir / "tables", day_dir / "reports"
-        portfolios = load_participants(args.portfolios)
+        portfolios = load_participants(args.portfolios, legacy=past and not args.test)
         if via == "claude-code":
             own = [w.strip() for w in os.environ.get("MAPHUB_OWN_PARTICIPANTS", "").split(",") if w.strip()]
             if not own:
                 raise MapHubError("set MAPHUB_OWN_PARTICIPANTS in .env (comma-separated pseudonyms): "
                                   "Claude Code scores only the columns listed there")
-            unknown = [w for w in own if w not in portfolios]
-            if unknown:
-                raise MapHubError(f"no portfolio for {', '.join(unknown)} (MAPHUB_OWN_PARTICIPANTS)")
-            portfolios = {w: portfolios[w] for w in own}
+            skipped = [w for w in own if w not in portfolios]
+            if skipped:
+                log(f"Not scoring {', '.join(skipped)}: inactive, not opted in, or no portfolio")
+            portfolios = {w: portfolios[w] for w in own if w in portfolios}
+            if not portfolios:
+                raise MapHubError("none of MAPHUB_OWN_PARTICIPANTS can be scored")
         cfg = {**cfg, "cache": len(portfolios) > 1}
         prompt = PROMPTS[cfg["prompt"]]
         chunks = make_chunks(papers, cfg["chunk_size"])
@@ -836,6 +874,7 @@ def main() -> int:
                 scores[who].update(read_json(scores_dir / who / f"chunk{k}.json")["scores"])
         for path in write_tables(tables, date, papers, scores):
             log(f"Wrote {path}")
+        publish_roster(tables, args.portfolios)
         if past and not args.test:
             log("No reports for a past date; the report cache holds recent days only.")
         else:

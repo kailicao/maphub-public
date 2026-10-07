@@ -7,7 +7,7 @@
 # Private portfolios repo, checked out inside this one
 maphub-portfolios/
 
-# Saved papers and scores for resuming runs, and the local report cache
+# Saved papers and scores for resuming runs
 .work/
 
 # Leftovers from interrupted writes (files are written to .tmp, then renamed)

@@ -22,8 +22,7 @@ Steps:
      has them.
   2. Score. One Claude request per participant per chunk of about 50 papers.
      The instructions and papers come first and are cached across participants.
-  3. Write. One Parquet file per ID month, the viewer's index.json and each
-     participant's report.
+  3. Write. One Parquet file per ID month and the viewer's index.json.
   4. Resume. Each (participant, chunk) is saved as it arrives; a rerun skips
      what is already saved. Parquet files are written only once all are done.
 
@@ -85,9 +84,6 @@ DEADLINE_HOUR = 14  # arXiv's daily submission deadline, 14:00 ET (unverified fo
 LISTING_CATEGORIES = ["astro-ph", "astro-ph.CO", "astro-ph.EP", "astro-ph.GA", "astro-ph.HE",
                       "astro-ph.IM", "astro-ph.SR", "cs.AI"]
 PAGE = 500  # results per arXiv API page
-REPORT_DAYS = 5  # the report cache keeps the last 5 announcement days
-REPORT_TOP = 5
-REPORT_ABOVE = 90
 MAX_TOKENS = 16000
 SCORE_ATTEMPTS = 3  # direct mode: tries per chunk when the reply is unusable
 BATCH_ROUNDS = 3  # batch mode: resubmissions of failed requests
@@ -660,12 +656,6 @@ def score_batch(client, cfg, jobs, prefixes, portfolios, scores_dir, state: Path
 # ------------------------------------------------------------------------ write
 
 
-def report_picks(mine: dict[str, int]) -> list[tuple[str, int]]:
-    """A participant's report: their top 5 papers plus all above 90, ranked by score."""
-    ranked = sorted(mine.items(), key=lambda kv: (-kv[1], kv[0]))
-    return [(pid, s) for i, (pid, s) in enumerate(ranked) if i < REPORT_TOP or s > REPORT_ABOVE]
-
-
 def yymm_year(yymm: str) -> int:
     return (1900 if int(yymm[:2]) >= 91 else 2000) + int(yymm[:2])  # arXiv began in 1991
 
@@ -792,29 +782,6 @@ def publish_roster(tables: Path, portfolios: Path) -> None:
     })
 
 
-def write_reports(reports: Path, date: dt.date, papers, scores, cfg) -> None:
-    """Each participant's top 5 papers plus all above 90, ranked by score."""
-    info = {p["id"]: p for p in papers}
-    for who, mine in scores.items():
-        picked = report_picks(mine)
-        lines = [f"# MapHub report for {who}, {date.isoformat()}", "",
-                 f"{len(picked)} of {len(mine)} new papers; scored by {cfg['model']}, "
-                 f"prompt {cfg['prompt']}.", ""]
-        for pid, s in picked:
-            p = info[pid]
-            authors = ", ".join(p["authors"][:3]) + (" et al." if len(p["authors"]) > 3 else "")
-            lines += [f"## {s} · [{pid}](https://arxiv.org/abs/{pid}) · {p['primary']}", "",
-                      f"**{p['title']}**", "", authors, "", p["abstract"], ""]
-        path = reports / who / f"{date.isoformat()}.md"
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text("\n".join(lines), encoding="utf-8")
-    # Keep the last REPORT_DAYS announcement days across all participants.
-    days = sorted({f.stem for f in reports.glob("*/*.md")})
-    for old in days[:-REPORT_DAYS]:
-        for f in reports.glob(f"*/{old}.md"):
-            f.unlink()
-
-
 def summarize(scores_dir: Path, participants) -> None:
     total = {"input": 0, "cache_write": 0, "cache_read": 0, "output": 0}
     seconds = 0.0
@@ -862,34 +829,6 @@ def write_commit_message(args, date, cfg, via, columns, n_papers, n_skipped) -> 
     log(f"Commit message written to {path}")
 
 
-def rebuild_reports(args) -> int:
-    """Rebuild one date's reports from its table: no scoring, and no Claude requests,
-    so a backfilled or locally scored day can join the report cache."""
-    date = args.date
-    yymms = index_dates(args.tables).get(date.isoformat())
-    if not yymms:
-        raise MapHubError(f"no table for {date}")
-    scores: dict[str, dict[str, int]] = {}
-    for yymm in yymms:
-        for row in pq.read_table(table_path(args.tables, yymm, date)).to_pylist():
-            pid = full_id(yymm, row["id"])
-            for who, value in row.items():
-                if who != "id" and value is not None:
-                    scores.setdefault(who, {})[pid] = value
-    portfolios = load_participants(args.portfolios)
-    scores = {w: v for w, v in scores.items() if w in portfolios}
-    saved = args.work / date.isoformat() / "papers.json"
-    info = {p["id"]: p for p in read_json(saved)} if saved.exists() else {}
-    missing = sorted({pid for mine in scores.values() for pid in mine} - info.keys())
-    if missing:
-        info.update(fetch_metadata(missing))
-    cfg = load_config(args.config, dt.datetime.now(EASTERN).date())
-    log(f"{date}: rebuilding reports for {len(scores)} participants from the table")
-    write_reports(args.reports, date, list(info.values()), scores, cfg)
-    log(f"Wrote reports to {args.reports}")
-    return 0
-
-
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     ap.add_argument("date", nargs="?", type=dt.date.fromisoformat,
@@ -898,18 +837,14 @@ def main() -> int:
                     help="score 5 astro-ph and 5 cs.AI papers; outputs go to the work dir")
     ap.add_argument("--batch", action="store_true", help="use the Message Batches API")
     ap.add_argument("--backfill", action="store_true",
-                    help="score a past date like a daily run: all active participants, via the API, "
-                         "with reports (default for past dates: the legacy survey)")
-    ap.add_argument("--reports-only", action="store_true",
-                    help="rebuild a date's reports from its table, without scoring")
+                    help="score a past date like a daily run: all active participants, via the API "
+                         "(default for past dates: the legacy survey)")
     ap.add_argument("--via", choices=["api", "claude-code"],
                     help="how to send requests (default: claude-code for a past date, else api)")
     ap.add_argument("--model", help="with --test: try this model instead of the configured one")
     ap.add_argument("--effort", help="with --test: try this effort level ('none' to omit it)")
     ap.add_argument("--portfolios", type=Path, default=ROOT / "maphub-portfolios")
     ap.add_argument("--tables", type=Path, default=ROOT / "tables")
-    ap.add_argument("--reports", type=Path, default=ROOT / ".work" / "reports",
-                    help="report cache (point at the cache branch's checkout)")
     ap.add_argument("--work", type=Path, default=ROOT / ".work",
                     help="saved papers and scores for resuming")
     ap.add_argument("--config", type=Path, default=ROOT / "config-log.json")
@@ -924,9 +859,6 @@ def main() -> int:
     via = args.via or ("claude-code" if legacy else "api")
     if via == "claude-code" and args.batch:
         ap.error("--batch works only with --via api")
-
-    if args.reports_only and args.date is None:
-        ap.error("--reports-only needs a date")
 
     def own_only(portfolios: dict) -> dict:
         """On the Claude Code route, only the columns listed in MAPHUB_OWN_PARTICIPANTS."""
@@ -943,8 +875,6 @@ def main() -> int:
         return kept
 
     try:
-        if args.reports_only:
-            return rebuild_reports(args)
         date, papers = get_papers(args.work, args.date)
         if args.date is None and not args.test:
             # Runs are repeated in case arXiv announces late; a listing already in
@@ -967,7 +897,7 @@ def main() -> int:
             if not papers:
                 log(f"Every paper of {date} is already scored on another date; nothing to do.")
                 return 0
-        tables, reports = args.tables, args.reports
+        tables = args.tables
         if args.test:
             papers = test_sample(papers)
             trial = ""
@@ -980,7 +910,7 @@ def main() -> int:
                     cfg["fallbacks"] = None  # not every model accepts them
                 trial = f"-{cfg['model']}-{cfg.get('effort') or 'default'}"
             day_dir = day_dir / f"test{trial}{'-claude-code' if via == 'claude-code' else ''}"
-            tables, reports = day_dir / "tables", day_dir / "reports"
+            tables = day_dir / "tables"
         portfolios = load_participants(args.portfolios, legacy=legacy and not args.test)
         if via == "claude-code":
             portfolios = own_only(portfolios)
@@ -1028,11 +958,6 @@ def main() -> int:
         publish_roster(tables, args.portfolios)
         if not args.test:
             write_commit_message(args, date, cfg, via, sorted(scores), len(papers), len(dupes))
-        if legacy and not args.test:
-            log("No reports for a past date; the report cache holds recent days only.")
-        else:
-            write_reports(reports, date, papers, scores, cfg)
-            log(f"Wrote reports to {reports}")
         return 0
     except MapHubError as e:
         log(f"Error: {e}")

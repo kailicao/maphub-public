@@ -42,7 +42,7 @@ df = pd.read_parquet("tables/2024-2026/2610/2026-10-06.parquet")
 
 | Path | Contents |
 | --- | --- |
-| `scorer/` | `daily_table.py`, which fetches a day's papers, scores them for each participant with the Claude API and writes the tables and reports |
+| `scorer/` | `daily_table.py`, which fetches a day's papers, scores them for each participant with the Claude API and writes the tables |
 | `viewer/` | the web viewer (`index.html`, `viewer.js`, `viewer.css`) and `serve.py`, a local server for testing |
 | `tables/` | the daily tables (written by the scorer) |
 | `.github/workflows/` | publishing the viewer and tables on GitHub Pages |

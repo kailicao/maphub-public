@@ -1,5 +1,4 @@
-# Score the day's arXiv listing, commit the table, publish the viewer and
-# refresh the report cache.
+# Score the day's arXiv listing, commit the table and publish the viewer.
 #
 # Two routes, chosen by the repository variable MAPHUB_VIA (or the run's input):
 #   api          the Claude API; secret ANTHROPIC_API_KEY (a key with a spend limit)
@@ -7,8 +6,7 @@
 #                CLAUDE_CODE_OAUTH_TOKEN (from `claude setup-token`), and the
 #                variable MAPHUB_OWN_PARTICIPANTS listing the columns it may score
 # Both routes need the secret PORTFOLIOS_TOKEN: a fine-grained token for
-# kailicao/maphub-portfolios only, with read and write access to its contents
-# (write for the report cache on its "reports" branch).
+# kailicao/maphub-portfolios only, with read access to its contents.
 #
 # Scheduled runs started on Oct 6, 2026, after a successful manual run.
 # Run logs are public; the scorer logs counts and pseudonyms, never portfolio text.
@@ -68,15 +66,6 @@ jobs:
           token: ${{ secrets.PORTFOLIOS_TOKEN }}
           path: maphub-portfolios
 
-      - name: Check out the report cache (empty on the first run)
-        env:
-          TOKEN: ${{ secrets.PORTFOLIOS_TOKEN }}
-        run: |
-          git clone -q --depth 1 --branch reports \
-            "https://x-access-token:${TOKEN}@github.com/kailicao/maphub-portfolios.git" reports-cache \
-            || mkdir -p reports-cache
-          rm -rf reports-cache/.git
-
       - uses: actions/setup-python@v7
         with:
           python-version: "3.13"
@@ -97,7 +86,7 @@ jobs:
           TEST: ${{ inputs.test && '--test' || '' }}
         # --via is always explicit: a rerun for yesterday counts as a past date,
         # which would otherwise default to Claude Code.
-        run: python scorer/daily_table.py $DATE $TEST --via "$VIA" --reports reports-cache
+        run: python scorer/daily_table.py $DATE $TEST --via "$VIA"
 
       - name: Commit the table
         id: commit
@@ -120,21 +109,6 @@ jobs:
           fi
           git push -q
           echo "changed=true" >> "$GITHUB_OUTPUT"
-
-      - name: Replace the report cache with one fresh commit
-        if: ${{ !inputs.test }}
-        env:
-          TOKEN: ${{ secrets.PORTFOLIOS_TOKEN }}
-        working-directory: reports-cache
-        run: |
-          [ -n "$(ls -A)" ] || exit 0
-          git init -q -b reports
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add -A
-          git commit -q -m "Reports for the last 5 announcement days"
-          git push -q --force \
-            "https://x-access-token:${TOKEN}@github.com/kailicao/maphub-portfolios.git" reports
 
   publish:
     needs: score

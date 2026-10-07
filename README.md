@@ -12,7 +12,7 @@ MapHub is a carpentry of the [Eric and Wendy Schmidt AI in Science Postdoctoral 
 - Select a participant (column name) to sort papers by relevance to them and participants by similarity to them. Select a paper (title) to sort papers by similarity to it and participants by its relevance to them. Similarity is the correlation (r) of that day's scores.
 - Hover over an arXiv ID for its URL, or over a cell for its score. The selection is kept in the URL, so a view can be shared.
 - Columns carry pseudonyms rather than names.
-- Titles and authors come from [DataCite](https://datacite.org/), which holds the metadata of arXiv's DOIs; the arXiv API cannot be queried from a browser.
+- Titles and authors come from [DataCite](https://datacite.org/), which holds the metadata of arXiv's DOIs; the arXiv API cannot be queried from a browser. For the rare paper whose DOI DataCite lacks, the scorer saves them in a small file beside the day's table (Tables).
 
 ## Tables
 
@@ -23,11 +23,13 @@ tables/
   2024-2026/                 three-year spans aligned with 1991
     2610/                    arXiv ID month (YYMM)
       2026-10-06.parquet     papers with 2610 IDs announced on Oct 6, 2026
+      2026-10-07.parquet
+      2026-10-07.meta.json   metadata of papers DataCite lacks, only on days with any
   index.json                 the dates with a table, by ID month: {"2610": [5, 6]}
   participants.json          who is active, and whose columns the viewer hides
 ```
 
-Each file has one row per paper: an `id` column holding the part of the arXiv ID the folder does not supply (`02245` for 2610.02245; `astro-ph_234` for the old-style astro-ph/0601234), then one `uint8` column of scores per participant. Each paper is scored once and appears in exactly one file. A date can have two files when its papers carry two ID months, as on the first listing of a month; `index.json` then lists that date in full under the other month, e.g. `"2609": [30, "2026-10-01"]`. Parquet opens in Python, R, Julia, MATLAB and DuckDB, for example:
+Each file has one row per paper: an `id` column holding the part of the arXiv ID the folder does not supply (`02245` for 2610.02245; `astro-ph_234` for the old-style astro-ph/0601234), then one `uint8` column of scores per participant. Each paper is scored once and appears in exactly one file. A date can have two files when its papers carry two ID months, as on the first listing of a month; `index.json` then lists that date in full under the other month, e.g. `"2609": [30, "2026-10-01"]`. On the rare day when DataCite has no record of a paper's DOI, a `<date>.meta.json` beside the Parquet file gives that paper's title, first three authors, author count and primary category, keyed like the `id` column; it is written once and never changed. Parquet opens in Python, R, Julia, MATLAB and DuckDB, for example:
 
 ```python
 import pandas as pd

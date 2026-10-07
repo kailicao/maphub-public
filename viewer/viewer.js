@@ -4,7 +4,9 @@
 // reads <base>/tables/index.json (which days exist and their Parquet files)
 // and the day's Parquet files. Titles, authors and primary categories come from
 // DataCite, which holds the metadata of arXiv's DOIs (10.48550/arXiv.<ID>);
-// the arXiv API sends no CORS header, so a browser cannot ask it directly.
+// the arXiv API sends no CORS header, so a browser cannot ask it directly. For
+// the rare paper whose DOI DataCite lacks, the scorer writes <date>.meta.json
+// beside the day's Parquet file, read only when DataCite leaves gaps.
 //
 // Selecting a participant sorts papers by relevance to them and participants by
 // similarity to them; selecting a paper sorts papers by similarity to it and
@@ -103,6 +105,24 @@ async function fetchPaperInfo(ids) {
   return info;
 }
 
+// Papers DataCite lacks, from the scorer's <date>.meta.json beside the table:
+// {row ID: {title, authors (first three, as full names), n_authors, primary}}.
+async function fetchFallback(file, yymm) {
+  const info = {};
+  try {
+    const meta = await getOptionalJSON(TABLES + file.replace(/\.parquet$/, ".meta.json"), {});
+    for (const [row, p] of Object.entries(meta)) {
+      // arXiv gives full names; take the last word as the family name.
+      const authors = p.authors.map((name) => {
+        const words = name.trim().split(/\s+/);
+        return { name, query: authorQuery(words.at(-1), words.slice(0, -1).join(" ")) };
+      });
+      info[fullId(yymm, row)] = { title: p.title, authors, n_authors: p.n_authors, primary: p.primary };
+    }
+  } catch { /* still unavailable */ }
+  return info;
+}
+
 // The folder supplies the ID month: "02245" -> "2610.02245", and old IDs
 // stored as archive_number: "astro-ph_234" -> "astro-ph/0601234".
 function fullId(yymm, row) {
@@ -116,9 +136,14 @@ async function loadDay(date, files) {
     if (!resp.ok) throw new Error(`${file}: HTTP ${resp.status}`);
     // The folder (YYMM) supplies the part of the ID the rows leave out.
     const yymm = file.split("/").at(-2);
-    return { yymm, rows: await parquetReadObjects({ file: await resp.arrayBuffer() }) };
+    return { file, yymm, rows: await parquetReadObjects({ file: await resp.arrayBuffer() }) };
   }));
   const info = await fetchPaperInfo(tables.flatMap(({ yymm, rows }) => rows.map((r) => fullId(yymm, r.id))));
+  // Rarely, DataCite lacks a paper; then the scorer's fallback file has it.
+  const gaps = tables.filter(({ yymm, rows }) => rows.some((r) => !info[fullId(yymm, r.id)]));
+  for (const extra of await Promise.all(gaps.map(({ file, yymm }) => fetchFallback(file, yymm)))) {
+    for (const [id, paper] of Object.entries(extra)) info[id] ??= paper;
+  }
   // A month-boundary date has two files; merge them.
   const people = [...new Set(tables.flatMap((t) => t.rows.length ? Object.keys(t.rows[0]) : []))]
     .filter((k) => k !== "id" && !roster.hidden.includes(k)).sort();
@@ -307,7 +332,7 @@ function render() {
     status.append(el("button", { type: "button", class: "clear", onclick: () => select(null) }, "Clear"));
   }
   const missing = day.papers.filter((p) => p.missing).length;
-  if (missing) status.append(` ${missing} titles could not be loaded from DataCite; their arXiv links still work.`);
+  if (missing) status.append(` ${missing} titles could not be loaded; their arXiv links still work.`);
 }
 
 function select(next) {

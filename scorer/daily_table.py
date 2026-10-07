@@ -22,7 +22,9 @@ Steps:
      has them.
   2. Score. One Claude request per participant per chunk of about 50 papers.
      The instructions and papers come first and are cached across participants.
-  3. Write. One Parquet file per ID month and the viewer's index.json.
+  3. Write. One Parquet file per ID month and the viewer's index.json. The
+     viewer takes titles and authors from DataCite; for the rare paper whose
+     DOI DataCite lacks, a <date>.meta.json beside the Parquet file holds them.
   4. Resume. Each (participant, chunk) is saved as it arrives; a rerun skips
      what is already saved. Parquet files are written only once all are done.
 
@@ -76,6 +78,8 @@ ROOT = Path(__file__).resolve().parent.parent  # the maphub repo
 RSS_URL = "https://rss.arxiv.org/rss/astro-ph+cs.AI"
 API_URL = "https://export.arxiv.org/api/query"
 ARXIV_PAUSE = 3.0  # arXiv API terms: at most one request every 3 seconds
+DATACITE_URL = "https://api.datacite.org/dois"  # where the viewer gets titles and authors
+DATACITE_BATCH = 100  # DOIs per DataCite search, as in the viewer
 USER_AGENT = "MapHub/0.1 (MIDAS arXiv Preprint Hub)"
 
 FIRST_YEAR = 1991  # table folders are 3-year spans aligned with arXiv's first year
@@ -771,6 +775,93 @@ def write_tables(tables: Path, date: dt.date, papers, scores: dict[str, dict[str
     return written
 
 
+def datacite_lacks(ids: list[str]) -> list[str]:
+    """The IDs whose arXiv DOI (10.48550/arXiv.<ID>) DataCite has no record of.
+
+    Searched in batches like the viewer, then one by one, since DataCite's
+    search index can lag behind new DOIs."""
+    found: set[str] = set()
+    for start in range(0, len(ids), DATACITE_BATCH):
+        part = ids[start : start + DATACITE_BATCH]
+        query = urllib.parse.urlencode({
+            # Old IDs (astro-ph/0601234) contain a slash, which the search syntax needs escaped.
+            "query": "doi:(" + " OR ".join("10.48550/arxiv." + i.replace("/", "\\/") for i in part) + ")",
+            "page[size]": len(part), "fields[dois]": "titles"})
+        for record in json.loads(http_get(f"{DATACITE_URL}?{query}"))["data"]:
+            found.add(re.sub(r"^10\.48550/arxiv\.", "", record["id"], flags=re.I))
+    lacking = []
+    for pid in ids:
+        if pid in found:
+            continue
+        req = urllib.request.Request(f"{DATACITE_URL}/10.48550/arxiv.{pid}?fields[dois]=titles",
+                                     headers={"User-Agent": USER_AGENT})
+        try:
+            with urllib.request.urlopen(req, timeout=60):
+                pass
+        except urllib.error.HTTPError as e:
+            if e.code != 404:
+                raise MapHubError(f"DataCite lookup of {pid} failed: {e}") from e
+            lacking.append(pid)
+        except (urllib.error.URLError, TimeoutError) as e:
+            raise MapHubError(f"DataCite lookup of {pid} failed: {e}") from e
+    return lacking
+
+
+def write_meta(tables: Path, date: dt.date, ids: list[str], lookup) -> list[Path]:
+    """<date>.meta.json beside each Parquet file, for the papers DataCite lacks:
+    title, first three authors, author count and primary category, keyed by the
+    row's ID. `lookup` maps a list of IDs to their papers, so metadata is needed
+    only for those. Written once and never changed; usually there is none. A
+    DataCite failure only warns, since the table is complete without it."""
+    by_month: dict[str, list[str]] = {}
+    for pid in ids:
+        by_month.setdefault(id_parts(pid)[0], []).append(pid)
+    todo = {yymm: month for yymm, month in by_month.items()
+            if not table_path(tables, yymm, date).with_suffix(".meta.json").exists()}
+    if not todo:
+        return []
+    try:
+        lacking = datacite_lacks([pid for month in todo.values() for pid in month])
+    except MapHubError as e:
+        log(f"Warning: {e}; no metadata fallback written (retry with --meta-only {date})")
+        return []
+    if not lacking:
+        return []
+    info = lookup(lacking)
+    written = []
+    for yymm, month in sorted(todo.items()):
+        meta = {id_parts(pid)[1]: {"title": info[pid]["title"], "authors": info[pid]["authors"][:3],
+                                   "n_authors": len(info[pid]["authors"]), "primary": info[pid]["primary"]}
+                for pid in sorted(month) if pid in lacking}
+        if meta:
+            path = table_path(tables, yymm, date).with_suffix(".meta.json")
+            write_json(path, meta)
+            written.append(path)
+    return written
+
+
+def meta_only(args) -> int:
+    """Write a date's metadata fallback from its existing table, without scoring:
+    for tables written before the fallback existed, or when DataCite was down."""
+    date = args.date
+    yymms = index_dates(args.tables).get(date.isoformat())
+    if not yymms:
+        raise MapHubError(f"no table for {date}")
+    ids = [full_id(yymm, row) for yymm in yymms
+           for row in pq.read_table(table_path(args.tables, yymm, date)).column("id").to_pylist()]
+    saved = args.work / date.isoformat() / "papers.json"
+    known = {p["id"]: p for p in read_json(saved)} if saved.exists() else {}
+
+    def lookup(wanted: list[str]) -> dict[str, dict]:
+        missing = [i for i in wanted if i not in known]
+        return {**known, **(fetch_metadata(missing) if missing else {})}
+
+    paths = write_meta(args.tables, date, ids, lookup)
+    log(f"{date}: " + (", ".join(f"wrote {p}" for p in paths)
+                       or "nothing to write (DataCite has every paper, or the fallback exists)"))
+    return 0
+
+
 def publish_roster(tables: Path, portfolios: Path) -> None:
     """tables/participants.json: who is active and whose column is hidden, for the
     public viewer. The tables never change when someone pauses or leaves; the
@@ -806,7 +897,7 @@ def summarize(scores_dir: Path, participants) -> None:
 # ------------------------------------------------------------------------- main
 
 
-def write_commit_message(args, date, cfg, via, columns, n_papers, n_skipped) -> None:
+def write_commit_message(args, date, cfg, via, columns, n_papers, n_skipped, n_meta=0) -> None:
     """Write the commit message for the table just written, to .work/commit-message.txt.
 
     The tables carry no provenance themselves; the commit that adds or changes a
@@ -823,6 +914,8 @@ def write_commit_message(args, date, cfg, via, columns, n_papers, n_skipped) -> 
              f"Columns: {', '.join(columns)}",
              f"Papers: {n_papers}" + (f" ({n_skipped} already scored on another date, left out)"
                                       if n_skipped else "")]
+    if n_meta:
+        lines.append(f"Metadata fallback: {n_meta} papers DataCite lacks, in {date.isoformat()}.meta.json")
     path = args.work / "commit-message.txt"
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text("\n".join(lines) + "\n", encoding="utf-8")
@@ -839,6 +932,8 @@ def main() -> int:
     ap.add_argument("--backfill", action="store_true",
                     help="score a past date like a daily run: all active participants, via the API "
                          "(default for past dates: the legacy survey)")
+    ap.add_argument("--meta-only", action="store_true",
+                    help="write a date's metadata fallback (papers DataCite lacks) from its table, without scoring")
     ap.add_argument("--via", choices=["api", "claude-code"],
                     help="how to send requests (default: claude-code for a past date, else api)")
     ap.add_argument("--model", help="with --test: try this model instead of the configured one")
@@ -874,7 +969,12 @@ def main() -> int:
             raise MapHubError("none of MAPHUB_OWN_PARTICIPANTS can be served")
         return kept
 
+    if args.meta_only and args.date is None:
+        ap.error("--meta-only needs a date")
+
     try:
+        if args.meta_only:
+            return meta_only(args)
         date, papers = get_papers(args.work, args.date)
         if args.date is None and not args.test:
             # Runs are repeated in case arXiv announces late; a listing already in
@@ -955,9 +1055,14 @@ def main() -> int:
                 scores[who].update(read_json(scores_dir / who / f"chunk{k}.json")["scores"])
         for path in write_tables(tables, date, papers, scores):
             log(f"Wrote {path}")
+        meta = write_meta(tables, date, [p["id"] for p in papers],
+                          lambda wanted: {p["id"]: p for p in papers})
+        for path in meta:
+            log(f"Wrote {path} (papers DataCite lacks)")
         publish_roster(tables, args.portfolios)
         if not args.test:
-            write_commit_message(args, date, cfg, via, sorted(scores), len(papers), len(dupes))
+            write_commit_message(args, date, cfg, via, sorted(scores), len(papers), len(dupes),
+                                 sum(len(read_json(m)) for m in meta))
         return 0
     except MapHubError as e:
         log(f"Error: {e}")

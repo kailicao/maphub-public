@@ -33,11 +33,13 @@ on:
         type: boolean
         default: false
   schedule:
-    # Monday to Friday at 06:00 UTC (2:00 AM ET in summer, 1:00 AM in winter),
-    # five or six hours after arXiv's 20:00 ET announcements, and at 12:00 UTC
+    # Monday to Friday at 06:17 UTC (2:17 AM ET in summer, 1:17 AM in winter),
+    # five or six hours after arXiv's 20:00 ET announcements, and at 12:17 UTC
     # as a retry for a late announcement. The scorer skips a listing already
     # in the tables, so the retry costs nothing when there is nothing new.
-    - cron: "0 6,12 * * 1-5"
+    # Off the top of the hour, when GitHub may drop scheduled runs under load
+    # (the first one, at 06:00 UTC on Oct 7, 2026, never started).
+    - cron: "17 6,12 * * 1-5"
 
 permissions:
   contents: write

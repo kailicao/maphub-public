@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""MapHub's local runs on KC's seat: the latest listing, and backfills one day at a time.
+"""MapHub's local runs through Claude Code: the latest listing, and backfills one day at a time.
 
     python scorer/local_run.py latest   # (or l) score the current listing; commit it with
                                         # any pending backfills as one commit, and push

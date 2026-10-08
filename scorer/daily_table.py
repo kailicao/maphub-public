@@ -36,11 +36,11 @@ Two ways to send requests (--via):
                GitHub Action passes the repo secret) or the repo root's .env
                file, which .gitignore keeps out of git. Default for the
                current listing.
-  claude-code  Claude Code's print mode (claude -p), on KC's seat on the
-               Avestruz Lab's Team plan. Only the participants named in
+  claude-code  Claude Code's print mode (claude -p), on whichever seat the
+               claude command is signed in to. Only the participants named in
                MAPHUB_OWN_PARTICIPANTS (in .env, comma-separated) are scored:
-               the columns that plan may be used for (KC's and the lab's for
-               now). Default for past dates (the legacy survey).
+               the columns that seat may be used for. Default for past dates
+               (the legacy survey).
                The API key is withheld from Claude Code, so it never bills
                the API account.
 
@@ -579,7 +579,7 @@ def score_direct(client, cfg, jobs, prefixes, portfolios, scores_dir) -> None:
 
 
 def score_claude_code(cfg, jobs, prefixes, portfolios, scores_dir) -> None:
-    """One request at a time through Claude Code's print mode (KC's Team-plan seat).
+    """One request at a time through Claude Code's print mode, on the signed-in seat.
 
     Tools are off, settings and CLAUDE.md files are not loaded (it runs in an
     empty folder), and the API key is withheld, so the request is the scoring

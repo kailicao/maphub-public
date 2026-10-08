@@ -2,7 +2,7 @@
 #
 # Two routes, chosen by the repository variable MAPHUB_VIA (or the run's input):
 #   api          the Claude API; secret ANTHROPIC_API_KEY (a key with a spend limit)
-#   claude-code  Claude Code on KC's ALCCA Team-plan seat; secret
+#   claude-code  Claude Code on a subscription seat; secret
 #                CLAUDE_CODE_OAUTH_TOKEN (from `claude setup-token`), and the
 #                variable MAPHUB_OWN_PARTICIPANTS listing the columns it may score
 # Both routes need the secret PORTFOLIOS_TOKEN: a fine-grained token for

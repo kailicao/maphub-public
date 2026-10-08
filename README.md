@@ -60,7 +60,7 @@ python scorer/daily_table.py             # the current arXiv listing
 python viewer/serve.py                   # viewer at http://localhost:8000/
 ```
 
-Kaili Cao's daily routine runs on his Claude Code seat (`claude` must be installed and signed in), with every active participant's column:
+Kaili Cao's daily routine runs through Claude Code on whichever seat `claude` is signed in to (it must be installed and signed in), with every active participant's column:
 
 ```bash
 python scorer/local_run.py l   # latest, in the morning: score the current listing, push it with any pending backfills

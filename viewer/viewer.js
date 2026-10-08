@@ -429,12 +429,10 @@ function wireTable() {
 function wireDates(dates, current) {
   const i = dates.indexOf(current);
   // Moving to another day keeps a selected participant (papers belong to one day).
-  const go = (d) => {
-    // On a day without a table there is no selection, but the URL may still carry one.
-    const keep = selection?.kind === "p" ? `#p=${encodeURIComponent(selection.key)}`
-      : selection ? "" : location.hash.match(/^#p=[^&]+$/)?.[0] ?? "";
-    location.href = BASE + d + keep;
-  };
+  // On a day without a table there is no selection, but the URL may still carry one.
+  const keep = () => (selection?.kind === "p" ? `#p=${encodeURIComponent(selection.key)}`
+    : selection ? "" : location.hash.match(/^#p=[^&]+$/)?.[0] ?? "");
+  const go = (d) => { location.href = BASE + d + keep(); };
   const input = $("date");
   input.value = current ?? "";
   // A typed date takes effect on Enter or when the field loses focus.
@@ -457,6 +455,9 @@ function wireDates(dates, current) {
   $("prev").onclick = () => prev && go(prev);
   $("next").onclick = () => next && go(next);
   $("home").href = $("latest").href = BASE;
+  // "Latest" keeps the selection too; the MapHub title starts afresh.
+  // Set just before the link is followed, so new-tab clicks keep it as well.
+  for (const ev of ["pointerdown", "focus"]) $("latest").addEventListener(ev, () => { $("latest").href = BASE + keep(); });
 }
 
 // The calendar shows one month: days with a table are buttons, other days plain

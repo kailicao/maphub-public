@@ -48,7 +48,7 @@ jobs:
           # Pages serves 404.html for paths it does not know, so dated URLs
           # such as <base>/2026-10-06 still load the viewer, which reads the
           # date from the URL.
-          cp viewer/index.html _site/404.html
+          cp _site/index.html _site/404.html
           if [ -d tables ]; then cp -r tables _site/tables; fi
 
       - uses: actions/configure-pages@v6

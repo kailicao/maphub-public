@@ -41,6 +41,10 @@ jobs:
         run: |
           mkdir _site
           cp viewer/index.html viewer/viewer.css viewer/viewer.js _site/
+          # Stamp the script and stylesheet links with the commit: Pages lets
+          # browsers keep files for 10 minutes, and a reload revalidates the
+          # page but not its cached files, so a new name fetches them at once.
+          sed -i "s/?v=dev/?v=${GITHUB_SHA::7}/g" _site/index.html
           # Pages serves 404.html for paths it does not know, so dated URLs
           # such as <base>/2026-10-06 still load the viewer, which reads the
           # date from the URL.

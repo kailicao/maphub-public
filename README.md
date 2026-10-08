@@ -59,3 +59,13 @@ python scorer/daily_table.py --test      # 5 astro-ph and 5 cs.AI papers
 python scorer/daily_table.py             # the current arXiv listing
 python viewer/serve.py                   # viewer at http://localhost:8000/
 ```
+
+Kaili Cao's daily routine runs on his Claude Code seat (`claude` must be installed and signed in), with every active participant's column:
+
+```bash
+python scorer/local_run.py latest   # morning: score the current listing, push it with any pending backfills
+python scorer/local_run.py back     # later, as usage allows: score one listing further back, commit locally
+python scorer/local_run.py push     # push pending backfills when there is no new listing
+```
+
+Each `back` scores a single day; its commit waits locally, and the next `latest` or `push` folds the waiting commits and the new table into one commit, keeping each table's provenance.

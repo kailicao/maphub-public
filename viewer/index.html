@@ -13,8 +13,13 @@
     <h1><a id="home" href="./">MapHub</a> <span class="fullname">MIDAS arXiv Preprint Hub</span></h1>
     <nav class="dates" aria-label="Announcement dates">
       <button id="prev" type="button" aria-label="Previous day">‹</button>
-      <input id="date" type="date" aria-label="Announcement date" title="Pick a date, or type one and press Enter">
+      <input id="date" type="text" inputmode="numeric" placeholder="YYYY-MM-DD" maxlength="10" size="10"
+        aria-label="Announcement date" title="Type a date and press Enter, or open the calendar">
+      <button id="cal" type="button" aria-label="Calendar" aria-expanded="false" aria-controls="calendar">
+        <svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><rect x="1.5" y="2.5" width="13" height="12" rx="1.5" fill="none" stroke="currentColor"/><path d="M1.5 6h13M5 1v3M11 1v3" stroke="currentColor"/></svg>
+      </button>
       <button id="next" type="button" aria-label="Next day">›</button>
+      <div id="calendar" class="calendar" role="dialog" aria-label="Pick an announcement date" hidden></div>
       <a id="latest" href="./">Latest</a>
     </nav>
   </header>
@@ -27,7 +32,7 @@
         <li><strong>Rows</strong> are the papers announced that day; <strong>columns</strong> are participants, shown by pseudonym.</li>
         <li><strong>Each cell</strong> is a relevance score from 0 to 100. A language model (Claude) assigns it by reading the paper's title, authors and abstract against the participant's research portfolio: 100 = they would have written it, 80 = coauthored it, 60 = would cite it, 30 = may broaden their view, 0 = outside their interests.</li>
         <li><strong>Select a participant</strong> (column name) to see the papers most relevant to them, and the participants with the most similar interests. <strong>Select a paper</strong> (its title) to see who it matters to most: likely the best people to ask about it. Similarity, r, is the correlation of that day's scores.</li>
-        <li>Hover over a cell for its score, or over an arXiv number for the paper's link. The arrows and the date box move between days; weekends and holidays have no listing.</li>
+        <li>Hover over a cell for its score, or over an arXiv number for the paper's link. The arrows, the date box and the calendar move between days, keeping a selected participant; in the calendar, days with a table are highlighted, and weekends and holidays have no listing.</li>
       </ul>
       <p><strong>Participants</strong> are researchers and research groups who have each provided a short research portfolio describing their work; the scores come from these portfolios. Columns carry pseudonyms rather than names. Scores are public and stay in the tables after a participant pauses or leaves; their column can then be shown greyed out or hidden from this page. If you would like to join, please email <a href="mailto:kailicao@umich.edu">kailicao@umich.edu</a>.</p>
       <p>MapHub is a carpentry of the <a href="https://midas.umich.edu/training/postdoctoral-programs/schmidt-ai-in-science-postdoctoral-fellowship/">Eric and Wendy Schmidt AI in Science Postdoctoral Fellowship</a> at the <a href="https://midas.umich.edu/">Michigan Institute for Data and AI in Society (MIDAS)</a>, led by Kaili Cao with teammates Kyle Heyblom and Eva Albalghiti. Its code and daily tables are public on <a href="https://github.com/kailicao/maphub-public">GitHub</a>; titles and authors come from <a href="https://datacite.org/">DataCite</a>, which holds arXiv's DOI records.</p>

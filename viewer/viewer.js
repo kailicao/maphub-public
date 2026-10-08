@@ -295,7 +295,7 @@ function el(tag, attrs = {}, ...kids) {
   const node = document.createElement(tag);
   for (const [k, v] of Object.entries(attrs)) {
     if (k === "class") node.className = v;
-    else if (k.startsWith("data-")) node.setAttribute(k, v);
+    else if (k.startsWith("data-") || k.startsWith("aria-")) node.setAttribute(k, v);
     else node[k] = v;
   }
   node.append(...kids.filter((k) => k != null));
@@ -428,24 +428,27 @@ function wireTable() {
 
 function wireDates(dates, current) {
   const i = dates.indexOf(current);
-  const go = (d) => { location.href = BASE + d; };
-  const input = $("date");
-  input.min = dates[0];
-  input.max = dates.at(-1);
-  input.value = current ?? "";
-  // The browser fires "change" on every keystroke once the date is valid (typing
-  // a year passes through 0002, 0020, ...), so typed dates take effect on Enter
-  // or when the field loses focus; dates picked from the calendar at once.
-  let typing = false;
-  const commit = () => {
-    typing = false;
-    const v = input.value;
-    if (v && v !== current && v >= FIRST_DAY) go(v);
+  // Moving to another day keeps a selected participant (papers belong to one day).
+  const go = (d) => {
+    // On a day without a table there is no selection, but the URL may still carry one.
+    const keep = selection?.kind === "p" ? `#p=${encodeURIComponent(selection.key)}`
+      : selection ? "" : location.hash.match(/^#p=[^&]+$/)?.[0] ?? "";
+    location.href = BASE + d + keep;
   };
-  input.addEventListener("keydown", (e) => { if (e.key === "Enter") commit(); else typing = true; });
-  input.addEventListener("pointerdown", () => { typing = false; });
-  input.addEventListener("change", () => { if (!typing) commit(); });
-  input.addEventListener("blur", () => { if (typing) commit(); });
+  const input = $("date");
+  input.value = current ?? "";
+  // A typed date takes effect on Enter or when the field loses focus.
+  const valid = (v) => /^\d{4}-\d{2}-\d{2}$/.test(v) && !isNaN(Date.parse(`${v}T12:00:00Z`)) &&
+    new Date(`${v}T12:00:00Z`).toISOString().startsWith(v);
+  const commit = () => {
+    const v = input.value.trim();
+    if (v === current || !v) return;
+    if (valid(v) && v >= FIRST_DAY) go(v);
+    else input.value = current ?? "";
+  };
+  input.addEventListener("keydown", (e) => { if (e.key === "Enter") commit(); });
+  input.addEventListener("blur", commit);
+  wireCalendar(dates, current, go);
   // Prev/next step through the days that have tables.
   const prev = i > 0 ? dates[i - 1] : i < 0 ? dates.filter((d) => d < current).at(-1) : null;
   const next = i >= 0 ? dates[i + 1] : dates.find((d) => d > current);
@@ -454,6 +457,52 @@ function wireDates(dates, current) {
   $("prev").onclick = () => prev && go(prev);
   $("next").onclick = () => next && go(next);
   $("home").href = $("latest").href = BASE;
+}
+
+// The calendar shows one month: days with a table are buttons, other days plain
+// text (muted on weekdays, faint on weekends); the shown day is outlined.
+function wireCalendar(dates, current, go) {
+  const box = $("calendar"), button = $("cal");
+  const have = new Set(dates);
+  const months = (d) => d.slice(0, 7);
+  const first = dates.length ? months(dates[0]) : null, last = dates.length ? months(dates.at(-1)) : null;
+  let shown = months(current ?? dates.at(-1) ?? new Date().toISOString());
+  const shift = (ym, n) => {
+    const [y, m] = ym.split("-").map(Number);
+    const d = new Date(Date.UTC(y, m - 1 + n, 1));
+    return d.toISOString().slice(0, 7);
+  };
+  const draw = () => {
+    const [y, m] = shown.split("-").map(Number);
+    const title = new Date(Date.UTC(y, m - 1, 1)).toLocaleDateString("en-US", { month: "long", year: "numeric", timeZone: "UTC" });
+    const back = el("button", { type: "button", "aria-label": "Previous month", onclick: () => { shown = shift(shown, -1); draw(); } }, "‹");
+    const fwd = el("button", { type: "button", "aria-label": "Next month", onclick: () => { shown = shift(shown, 1); draw(); } }, "›");
+    back.disabled = !first || shown <= first;
+    fwd.disabled = !last || shown >= last;
+    const grid = el("div", { class: "cal-grid" }, ...["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"].map((d) => el("span", { class: "cal-dow" }, d)));
+    const lead = new Date(Date.UTC(y, m - 1, 1)).getUTCDay();
+    for (let k = 0; k < lead; k++) grid.append(el("span"));
+    const n = new Date(Date.UTC(y, m, 0)).getUTCDate();
+    for (let dd = 1; dd <= n; dd++) {
+      const iso = `${shown}-${String(dd).padStart(2, "0")}`;
+      const weekend = [0, 6].includes(new Date(`${iso}T12:00:00Z`).getUTCDay());
+      const cls = "cal-day" + (weekend ? " weekend" : "") + (iso === current ? " current" : "");
+      grid.append(have.has(iso)
+        ? el("button", { type: "button", class: cls + " has", title: `Table for ${iso}`, onclick: () => go(iso) }, String(dd))
+        : el("span", { class: cls, title: weekend ? "Weekend: no listing" : "No table" }, String(dd)));
+    }
+    box.replaceChildren(el("div", { class: "cal-head" }, back, el("span", {}, title), fwd), grid,
+      el("div", { class: "cal-legend" }, "Highlighted days have a table."));
+  };
+  const open = (yes) => {
+    box.hidden = !yes;
+    button.setAttribute("aria-expanded", String(yes));
+    if (yes) { shown = months(current ?? dates.at(-1) ?? shown); draw(); }
+  };
+  button.onclick = (e) => { e.stopPropagation(); open(box.hidden); };
+  box.addEventListener("click", (e) => e.stopPropagation());
+  document.addEventListener("click", () => open(false));
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape") open(false); });
 }
 
 function fail(message) {

@@ -8,7 +8,7 @@ MapHub is a carpentry of the [Eric and Wendy Schmidt AI in Science Postdoctoral 
 
 ## Viewer
 
-- The base URL shows the latest day; each day also has its own URL, such as `https://kailicao.github.io/maphub-public/2026-10-06`. Weekends and holidays have no arXiv listing and no table.
+- The base URL shows the latest day; each day also has its own URL, such as `https://kailicao.github.io/maphub-public/2026-10-06`. Weekends and holidays have no arXiv listing and no table. The arrows, the date box and the calendar, where days with a table are highlighted, move between days and keep a selected participant.
 - By default, papers are ranked by their average score over the participants shown, and participants by the rank correlation (ρ) of their scores with the average of the others'. Select a participant (column name) to sort papers by relevance to them and participants by similarity to them. Select a paper (title) to sort papers by similarity to it and participants by its relevance to them. Similarity is the correlation (r) of that day's scores.
 - Hover over an arXiv ID for its URL, or over a cell for its score. The selection is kept in the URL, so a view can be shared.
 - Columns carry pseudonyms rather than names.

@@ -9,7 +9,7 @@ MapHub is a carpentry of the [Eric and Wendy Schmidt AI in Science Postdoctoral 
 ## Viewer
 
 - The base URL shows the latest day; each day also has its own URL, such as `https://kailicao.github.io/maphub-public/2026-10-06`. Weekends and holidays have no arXiv listing and no table.
-- Select a participant (column name) to sort papers by relevance to them and participants by similarity to them. Select a paper (title) to sort papers by similarity to it and participants by its relevance to them. Similarity is the correlation (r) of that day's scores.
+- By default, papers are ranked by their average score over the participants shown, and participants by the rank correlation (ρ) of their scores with the average of the others'. Select a participant (column name) to sort papers by relevance to them and participants by similarity to them. Select a paper (title) to sort papers by similarity to it and participants by its relevance to them. Similarity is the correlation (r) of that day's scores.
 - Hover over an arXiv ID for its URL, or over a cell for its score. The selection is kept in the URL, so a view can be shared.
 - Columns carry pseudonyms rather than names.
 - Titles and authors come from [DataCite](https://datacite.org/), which holds the metadata of arXiv's DOIs; the arXiv API cannot be queried from a browser. For the rare paper whose DOI DataCite lacks, the scorer saves them in a small file beside the day's table (Tables).
@@ -63,9 +63,9 @@ python viewer/serve.py                   # viewer at http://localhost:8000/
 Kaili Cao's daily routine runs on his Claude Code seat (`claude` must be installed and signed in), with every active participant's column:
 
 ```bash
-python scorer/local_run.py latest   # morning: score the current listing, push it with any pending backfills
-python scorer/local_run.py back     # later, as usage allows: score one listing further back, commit locally
-python scorer/local_run.py push     # push pending backfills when there is no new listing
+python scorer/local_run.py l   # latest, in the morning: score the current listing, push it with any pending backfills
+python scorer/local_run.py b   # back, as usage allows: score one listing further back, commit locally
+python scorer/local_run.py p   # push pending backfills when there is no new listing
 ```
 
 Each `back` scores a single day; its commit waits locally, and the next `latest` or `push` folds the waiting commits and the new table into one commit, keeping each table's provenance.

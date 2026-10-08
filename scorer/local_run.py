@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """MapHub's local runs on KC's seat: the latest listing, and backfills one day at a time.
 
-    python scorer/local_run.py latest   # score the current listing; commit it with any
-                                        # pending backfills as one commit, and push
-    python scorer/local_run.py back     # score one listing further back; commit locally
-    python scorer/local_run.py push     # push pending backfills without a new listing
+    python scorer/local_run.py latest   # (or l) score the current listing; commit it with
+                                        # any pending backfills as one commit, and push
+    python scorer/local_run.py back     # (or b) score one listing further back; commit locally
+    python scorer/local_run.py push     # (or p) push pending backfills without a new listing
 
 Every table gets all active participants' columns, scored through Claude Code
 (daily_table.py --via claude-code). One commit per day: a backfill is committed
@@ -63,7 +63,7 @@ def sync() -> None:
     git(PORTFOLIOS, "pull", "-q", "--ff-only")
     if git(ROOT, "status", "--porcelain", "--untracked-files=no", "--", "tables"):
         raise RunError("tables/ has uncommitted changes; commit or discard them first")
-    pulled = subprocess.run(["git", "-C", str(ROOT), "pull", "-q", "--rebase"], capture_output=True, text=True)
+    pulled = subprocess.run(["git", "-C", str(ROOT), "pull", "-q", "--rebase", "--autostash"], capture_output=True, text=True)
     rebasing = lambda: (ROOT / ".git" / "rebase-merge").exists() or (ROOT / ".git" / "rebase-apply").exists()
     if pulled.returncode != 0 and not rebasing():
         raise RunError(f"git pull: {pulled.stderr.strip()}")
@@ -161,9 +161,12 @@ def back_date() -> dt.date:
 
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
-    ap.add_argument("mode", choices=["latest", "back", "push"])
+    ap.add_argument("mode", choices=["latest", "back", "push", "l", "b", "p"],
+                    help="latest (l), back (b) or push (p)")
     ap.add_argument("--yes", action="store_true", help="push without asking to confirm the message")
     args = ap.parse_args()
+    args.mode = {"l": "latest", "b": "back", "p": "push"}.get(args.mode, args.mode)
+    sys.stdout.reconfigure(line_buffering=True)  # keep our lines in order with the scorer's
     dtab.load_env(ROOT / ".env")
     try:
         sync()

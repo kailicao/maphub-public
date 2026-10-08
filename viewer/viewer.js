@@ -174,6 +174,23 @@ function pearson(xs, ys) {
   return sxx && syy ? sxy / Math.sqrt(sxx * syy) : null;
 }
 
+// Spearman's rank correlation: Pearson's r of the ranks, ties sharing their mean rank.
+function spearman(xs, ys) {
+  const keep = xs.map((x, i) => [x, ys[i]]).filter(([x, y]) => x != null && y != null);
+  const ranks = (vs) => {
+    const order = vs.map((v, i) => [v, i]).sort((a, b) => a[0] - b[0]);
+    const r = new Array(vs.length);
+    for (let i = 0; i < order.length;) {
+      let j = i;
+      while (j + 1 < order.length && order[j + 1][0] === order[i][0]) j++;
+      for (let k = i; k <= j; k++) r[order[k][1]] = (i + j) / 2 + 1;
+      i = j + 1;
+    }
+    return r;
+  };
+  return pearson(ranks(keep.map((p) => p[0])), ranks(keep.map((p) => p[1])));
+}
+
 const get = (paper, who) => day.score.get(`${paper}|${who}`) ?? null;
 const column = (who) => day.papers.map((p) => get(p.id, who));
 const row = (paper) => day.people.map((who) => get(paper, who));
@@ -208,7 +225,21 @@ function arrange() {
       paperSim: sim,
     };
   }
-  return { papers: day.papers, people: day.people };
+  // No selection: papers by their average score over the visible columns, so
+  // the papers that matter to most participants come first; participants by
+  // the rank correlation of their scores with the average of the others', so
+  // those most in line with the group come first.
+  const mean = (scores) => {
+    const present = scores.filter((s) => s != null);
+    return present.length ? present.reduce((a, b) => a + b, 0) / present.length : null;
+  };
+  const others = (who) => day.papers.map((p) => mean(day.people.filter((w) => w !== who).map((w) => get(p.id, w))));
+  const sim = new Map(day.people.map((who) => [who, spearman(column(who), others(who))]));
+  return {
+    papers: byDesc(day.papers, (p) => mean(row(p.id)), byId),
+    people: byDesc(day.people, (w) => sim.get(w), byName),
+    personSim: sim,
+  };
 }
 
 // ---------------------------------------------------------------- color
@@ -283,7 +314,8 @@ function render() {
     ...people.map((who) => el("th", { scope: "col", class: "who" + (selection?.kind === "p" && selection.key === who ? " selected" : "") + (isActive(who) ? "" : " inactive") },
       el("button", { type: "button", "data-person": who,
         title: isActive(who) ? `Select ${who}` : `Select ${who} (no longer active; scores up to when they paused or left)` }, who),
-      personSim ? el("span", { class: "r", title: `Similarity to ${selection.key}` }, fmt(personSim.get(who))) : null)));
+      personSim ? el("span", { class: "r", title: selection ? `Similarity to ${selection.key}`
+        : "Rank correlation with the average of the other participants" }, fmt(personSim.get(who))) : null)));
   table.append(el("thead", {}, head));
 
   const body = el("tbody");
@@ -324,7 +356,8 @@ function render() {
     const when = new Date(`${day.date}T12:00:00Z`).toLocaleDateString("en-US",
       { weekday: "long", year: "numeric", month: "long", day: "numeric", timeZone: "UTC" });
     status.textContent = `${when}: ${day.papers.length} new papers in astro-ph and cs.AI, ` +
-      `scored for ${day.people.length} participants. Select a participant or a paper title to reorder.`;
+      `scored for ${day.people.length} participants. Papers by average score; participants by rank correlation (ρ) ` +
+      "with the average of the others. Select a participant or a paper title to reorder.";
   } else {
     status.textContent = selection.kind === "p"
       ? `Papers by relevance to ${selection.key}; participants by similarity (r) to ${selection.key}.`

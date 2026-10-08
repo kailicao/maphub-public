@@ -239,20 +239,38 @@ def clean(text: str | None) -> str:
     return " ".join((text or "").split())
 
 
-def fetch_listing() -> tuple[dt.date, list[str]]:
-    """Read the current listing's date and its new submissions from the RSS feed."""
+def from_rss(item) -> dict:
+    """One RSS item -> {id, title, authors, abstract, primary}, as from the API.
+
+    For the rare paper the API's index lacks on the day it is listed. The feed
+    lists the primary category first and the authors in one comma-separated line."""
+    abstract = (item.findtext("description") or "").split("Abstract:", 1)[-1]
+    creators = item.findtext("dc:creator", "", NS)
+    return {
+        "id": bare_id(item.findtext("guid", "")),
+        "title": clean(item.findtext("title")),
+        "authors": [clean(a) for a in creators.split(",") if a.strip()],
+        "abstract": clean(abstract),
+        "primary": clean(item.findtext("category")),
+        "submitted": "",
+    }
+
+
+def fetch_listing() -> tuple[dt.date, dict[str, dict]]:
+    """Read the current listing's date and its new submissions from the RSS feed,
+    with each item's metadata as a fallback for the API."""
     root = ET.fromstring(http_get(RSS_URL))
     channel = root.find("channel")
     pub = channel.findtext("pubDate") if channel is not None else None
     if not pub:
         raise MapHubError("RSS feed has no pubDate")
     listing_date = email.utils.parsedate_to_datetime(pub).date()
-    ids = [
-        bare_id(item.findtext("guid", ""))
-        for item in root.iter("item")
-        if item.findtext("arxiv:announce_type", "", NS).strip() == "new"
-    ]
-    return listing_date, sorted(set(ids))
+    items = {}
+    for item in root.iter("item"):
+        if item.findtext("arxiv:announce_type", "", NS).strip() == "new":
+            paper = from_rss(item)
+            items[paper["id"]] = paper
+    return listing_date, dict(sorted(items.items()))
 
 
 def parse_entry(entry) -> dict:
@@ -268,8 +286,9 @@ def parse_entry(entry) -> dict:
     }
 
 
-def fetch_metadata(ids: list[str]) -> dict[str, dict]:
-    """Title, authors, abstract and primary category from the arXiv API."""
+def fetch_metadata(ids: list[str], required: bool = True) -> dict[str, dict]:
+    """Title, authors, abstract and primary category from the arXiv API. With
+    required=False, papers the API still lacks after a retry are left out."""
     papers: dict[str, dict] = {}
     todo = list(ids)
     for attempt in range(2):  # the API occasionally drops entries; ask once more
@@ -287,7 +306,7 @@ def fetch_metadata(ids: list[str]) -> dict[str, dict]:
         if not todo:
             break
         log(f"  arXiv API missed {len(todo)} papers; asking again")
-    if todo:
+    if todo and required:
         raise MapHubError(f"arXiv API returned no metadata for {', '.join(todo)}")
     return papers
 
@@ -375,7 +394,8 @@ def get_papers(work: Path, date: dt.date | None) -> tuple[dt.date, list[dict]]:
                         "to_utc": end.isoformat()})
             return date, papers
     log(f"Fetching the current listing from {RSS_URL}")
-    listing_date, ids = fetch_listing()
+    listing_date, rss = fetch_listing()
+    ids = list(rss)
     if date is not None and date != listing_date:
         raise MapHubError(
             f"no saved papers for {date}, and the current arXiv listing is dated "
@@ -388,7 +408,11 @@ def get_papers(work: Path, date: dt.date | None) -> tuple[dt.date, list[dict]]:
     if not ids:
         raise MapHubError(f"the listing dated {listing_date} has no new submissions")
     log(f"Listing dated {listing_date}: {len(ids)} new submissions; fetching metadata")
-    meta = fetch_metadata(ids)
+    meta = fetch_metadata(ids, required=False)
+    if lacking := [i for i in ids if i not in meta]:
+        # The API's index occasionally lags behind the listing (2610.09954 on Oct 8, 2026).
+        log(f"  taking {len(lacking)} papers from the RSS feed, which the API lacks: {', '.join(lacking)}")
+        meta.update({i: rss[i] for i in lacking})
     papers = [meta[i] for i in ids if listed_here(meta[i])]
     if len(papers) < len(ids):
         log(f"  dropped {len(ids) - len(papers)} papers whose primary category is elsewhere")

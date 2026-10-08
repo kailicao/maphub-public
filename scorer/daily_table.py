@@ -136,6 +136,14 @@ class MapHubError(Exception):
     pass
 
 
+class PartialScores(MapHubError):
+    """A reply that scored only some of the papers; `scores` keeps those it did."""
+
+    def __init__(self, message: str, scores: dict[str, int]):
+        super().__init__(message)
+        self.scores = scores
+
+
 def log(msg: str) -> None:
     print(msg, file=sys.stderr, flush=True)
 
@@ -531,8 +539,19 @@ def scores_from_text(text: str, chunk: list[dict]) -> dict[str, int]:
             scores[pid] = min(100, max(0, score))
     missing = wanted - scores.keys()
     if missing:
-        raise MapHubError(f"no score for {len(missing)} of {len(wanted)} papers")
+        raise PartialScores(f"no score for {len(missing)} of {len(wanted)} papers", scores)
     return scores
+
+
+def add_usage(total: dict | None, usage: dict) -> dict:
+    return usage if total is None else {k: total[k] + usage[k] for k in total}
+
+
+def still_to_score(cfg: dict, chunk: list[dict], prefix: str, got: dict) -> tuple[list[dict], str]:
+    """The papers a retry asks for: the whole chunk, or after a partial reply only the
+    papers it skipped, in a request of their own (too small to be worth caching)."""
+    todo = [p for p in chunk if p["id"] not in got]
+    return todo, prefix if len(todo) == len(chunk) else papers_prefix(PROMPTS[cfg["prompt"]], todo)
 
 
 def usage_dict(message) -> dict:
@@ -547,26 +566,31 @@ def usage_dict(message) -> dict:
 
 def score_direct(client, cfg, jobs, prefixes, portfolios, scores_dir) -> None:
     """One request at a time, chunk by chunk, so participants reuse the cached papers block."""
+    create = client.beta.messages.create if cfg.get("fallbacks") else client.messages.create
     for n, (who, k, chunk) in enumerate(jobs, 1):
-        params = request_params(cfg, prefixes[k], portfolios[who])
-        if cfg.get("fallbacks"):
-            params["fallbacks"] = cfg["fallbacks"]
-            params["betas"] = ["server-side-fallback-2026-07-01"]
-            create = client.beta.messages.create
-        else:
-            create = client.messages.create
+        got: dict[str, int] = {}  # scores kept from partial replies
+        usage, seconds = None, 0.0
         for attempt in range(1, SCORE_ATTEMPTS + 1):
+            todo, prefix = still_to_score(cfg, chunk, prefixes[k], got)
+            params = request_params(cfg if len(todo) == len(chunk) else {**cfg, "cache": False},
+                                    prefix, portfolios[who])
+            if cfg.get("fallbacks"):
+                params["fallbacks"] = cfg["fallbacks"]
+                params["betas"] = ["server-side-fallback-2026-07-01"]
             start = time.monotonic()
             try:
                 message = create(**params)
-                scores = parse_scores(message, chunk)
+                usage, seconds = add_usage(usage, usage_dict(message)), seconds + time.monotonic() - start
+                scores = {**got, **parse_scores(message, todo)}
+            except PartialScores as e:
+                got.update(e.scores)
+                log(f"  [{n}/{len(jobs)}] {who} chunk {k}: attempt {attempt}: {e}; asking again for those")
+                continue
             except (MapHubError, anthropic.APIConnectionError, anthropic.APIStatusError) as e:
                 log(f"  [{n}/{len(jobs)}] {who} chunk {k}: attempt {attempt} failed: {e}")
                 if isinstance(e, anthropic.APIStatusError) and e.status_code < 500 and e.status_code != 429:
                     raise  # a bad request or credentials problem will not fix itself
                 continue
-            seconds = time.monotonic() - start
-            usage = usage_dict(message)
             write_json(
                 scores_dir / who / f"chunk{k}.json",
                 {"ids": [p["id"] for p in chunk], "scores": scores, "usage": usage,
@@ -595,8 +619,11 @@ def score_claude_code(cfg, jobs, prefixes, portfolios, scores_dir) -> None:
         command += ["--effort", cfg["effort"]]
     with tempfile.TemporaryDirectory() as empty:
         for n, (who, k, chunk) in enumerate(jobs, 1):
-            text = prefixes[k] + f"<portfolio>\n{portfolios[who]}\n</portfolio>"
+            got: dict[str, int] = {}  # scores kept from partial replies
+            usage, seconds, cost = None, 0.0, 0.0
             for attempt in range(1, SCORE_ATTEMPTS + 1):
+                todo, prefix = still_to_score(cfg, chunk, prefixes[k], got)
+                text = prefix + f"<portfolio>\n{portfolios[who]}\n</portfolio>"
                 start = time.monotonic()
                 try:
                     run = subprocess.run(command, input=text, capture_output=True, text=True,
@@ -605,25 +632,30 @@ def score_claude_code(cfg, jobs, prefixes, portfolios, scores_dir) -> None:
                     if run.returncode != 0 or out.get("is_error") or out.get("subtype") != "success":
                         raise MapHubError(str(out.get("result") or run.stderr.strip() or
                                               f"exit {run.returncode}")[:300])
+                    u = out.get("usage", {})
+                    usage = add_usage(usage, {"input": u.get("input_tokens", 0),
+                                              "cache_write": u.get("cache_creation_input_tokens", 0),
+                                              "cache_read": u.get("cache_read_input_tokens", 0),
+                                              "output": u.get("output_tokens", 0)})
+                    seconds += time.monotonic() - start
+                    cost += out.get("total_cost_usd") or 0
                     reply = (json.dumps(out["structured_output"]) if out.get("structured_output")
                              else out.get("result", ""))
-                    scores = scores_from_text(reply, chunk)
+                    scores = {**got, **scores_from_text(reply, todo)}
                 except FileNotFoundError:
                     raise MapHubError("the claude command was not found; install Claude Code")
+                except PartialScores as e:
+                    got.update(e.scores)
+                    log(f"  [{n}/{len(jobs)}] {who} chunk {k}: attempt {attempt}: {e}; asking again for those")
+                    continue
                 except (MapHubError, json.JSONDecodeError, subprocess.TimeoutExpired) as e:
                     log(f"  [{n}/{len(jobs)}] {who} chunk {k}: attempt {attempt} failed: {e}")
                     continue
-                seconds = time.monotonic() - start
-                u = out.get("usage", {})
-                usage = {"input": u.get("input_tokens", 0),
-                         "cache_write": u.get("cache_creation_input_tokens", 0),
-                         "cache_read": u.get("cache_read_input_tokens", 0),
-                         "output": u.get("output_tokens", 0)}
                 write_json(
                     scores_dir / who / f"chunk{k}.json",
                     {"ids": [p["id"] for p in chunk], "scores": scores, "usage": usage,
                      "seconds": round(seconds, 1), "model": cfg["model"], "via": "claude-code",
-                     "api_equivalent_usd": out.get("total_cost_usd")},
+                     "api_equivalent_usd": round(cost, 6) if cost else None},
                 )
                 log(f"  [{n}/{len(jobs)}] {who} chunk {k}: {len(scores)} scores, {seconds:.0f} s, "
                     f"tokens in {usage['input']} + cache write {usage['cache_write']} "

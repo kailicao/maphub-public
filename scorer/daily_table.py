@@ -32,10 +32,9 @@ Participants are the folders of the portfolios repo that hold a portfolio.md;
 the folder name is the participant's pseudonym and column name.
 
 Two ways to send requests (--via):
-  api          The Claude API, with ANTHROPIC_API_KEY from the environment (the
-               GitHub Action passes the repo secret) or the repo root's .env
-               file, which .gitignore keeps out of git. Default for the
-               current listing.
+  api          The Claude API, with ANTHROPIC_API_KEY from the environment or
+               the repo root's .env file, which .gitignore keeps out of git.
+               Default for the current listing.
   claude-code  Claude Code's print mode (claude -p), on whichever seat the
                claude command is signed in to. Only the participants named in
                MAPHUB_OWN_PARTICIPANTS (in .env, comma-separated) are scored:
@@ -78,6 +77,7 @@ ROOT = Path(__file__).resolve().parent.parent  # the maphub repo
 RSS_URL = "https://rss.arxiv.org/rss/astro-ph+cs.AI"
 API_URL = "https://export.arxiv.org/api/query"
 ARXIV_PAUSE = 3.0  # arXiv API terms: at most one request every 3 seconds
+BUSY_WAITS = (30, 60, 120, 120)  # seconds before retrying a 429 or 503 reply: up to five tries
 DATACITE_URL = "https://api.datacite.org/dois"  # where the viewer gets titles and authors
 DATACITE_BATCH = 100  # DOIs per DataCite search, as in the viewer
 USER_AGENT = "MapHub/0.1 (MIDAS arXiv Preprint Hub)"
@@ -192,17 +192,34 @@ def load_config(path: Path, date: dt.date) -> dict:
 
 
 def http_get(url: str) -> bytes:
+    """GET with retries. A busy server (429 Too Many Requests, 503 Service
+    Unavailable) gets long waits, or the wait its Retry-After asks for; other
+    failures get three quick tries."""
     req = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
-    for attempt in range(3):
+    quick, busy = 0, 0
+    while True:
         try:
             with urllib.request.urlopen(req, timeout=60) as resp:
                 return resp.read()
+        except urllib.error.HTTPError as e:
+            if e.code not in (429, 503):
+                error = e
+            elif busy < len(BUSY_WAITS):
+                after = (e.headers.get("Retry-After") or "").strip()
+                wait = min(int(after), 300) if after.isdigit() else BUSY_WAITS[busy]
+                busy += 1
+                log(f"  GET failed ({e}); the server is busy, retrying in {wait} s")
+                time.sleep(wait)
+                continue
+            else:
+                raise MapHubError(f"GET {url} failed: {e} (still busy after {busy + 1} tries)") from e
         except (urllib.error.URLError, TimeoutError) as e:
-            if attempt == 2:
-                raise MapHubError(f"GET {url} failed: {e}") from e
-            log(f"  GET failed ({e}); retrying")
-            time.sleep(ARXIV_PAUSE * (attempt + 2))
-    raise AssertionError
+            error = e
+        quick += 1
+        if quick == 3:
+            raise MapHubError(f"GET {url} failed: {error}") from error
+        log(f"  GET failed ({error}); retrying")
+        time.sleep(ARXIV_PAUSE * (quick + 1))
 
 
 def bare_id(raw: str) -> str:
@@ -958,8 +975,8 @@ def write_commit_message(args, date, cfg, via, columns, n_papers, n_skipped, n_m
 
     The tables carry no provenance themselves; the commit that adds or changes a
     table records which portfolios, configuration and columns produced it, so
-    `git log -- <table>` gives each table's full history. The daily workflow
-    commits with this message; locally, use `git commit -F .work/commit-message.txt`.
+    `git log -- <table>` gives each table's full history. scorer/local_run.py
+    commits with this message; by hand, use `git commit -F .work/commit-message.txt`.
     """
     head = subprocess.run(["git", "-C", str(args.portfolios), "rev-parse", "--short", "HEAD"],
                           capture_output=True, text=True).stdout.strip() or "unknown"

@@ -44,23 +44,14 @@ df = pd.read_parquet("tables/2024-2026/2610/2026-10-06.parquet")
 
 | Path | Contents |
 | --- | --- |
-| `scorer/` | `daily_table.py`, which fetches a day's papers, scores them for each participant with the Claude API and writes the tables |
+| `scorer/` | `daily_table.py`, which fetches a day's papers, scores them for each participant with Claude (through Claude Code or the API) and writes the tables; `local_run.py`, the daily routine around it |
 | `viewer/` | the web viewer (`index.html`, `viewer.js`, `viewer.css`) and `serve.py`, a local server for testing |
 | `tables/` | the daily tables (written by the scorer) |
 | `.github/workflows/` | publishing the viewer and tables on GitHub Pages |
 
 ## Running locally
 
-Scoring needs the private portfolios repository checked out as `maphub-portfolios/` (one folder per pseudonym, each holding `portfolio.md`) and a Claude API key in `.env` (`ANTHROPIC_API_KEY=...`); both are kept out of git.
-
-```bash
-pip install -r scorer/requirements.txt
-python scorer/daily_table.py --test      # 5 astro-ph and 5 cs.AI papers
-python scorer/daily_table.py             # the current arXiv listing
-python viewer/serve.py                   # viewer at http://localhost:8000/
-```
-
-Kaili Cao's daily routine runs through Claude Code on whichever seat `claude` is signed in to (it must be installed and signed in), with every active participant's column:
+Scoring needs the private portfolios repository checked out as `maphub-portfolios/` (one folder per pseudonym, each holding `portfolio.md`), kept out of git. Kaili Cao's daily routine runs through Claude Code on whichever seat `claude` is signed in to (it must be installed and signed in), with every active participant's column:
 
 ```bash
 python scorer/local_run.py l   # latest, in the morning: score the current listing, push it with any pending backfills
@@ -68,4 +59,13 @@ python scorer/local_run.py b   # back, as usage allows: score one listing furthe
 python scorer/local_run.py p   # push pending backfills when there is no new listing
 ```
 
-Each `back` scores a single day; its commit waits locally, and the next `latest` or `push` folds the waiting commits and the new table into one commit, keeping each table's provenance.
+Each `back` scores a single day; its commit waits locally, and the next `latest` or `push` folds the waiting commits and the new table into one commit, keeping each table's provenance. Pushing a table starts "Publish viewer", which deploys the viewer and tables on GitHub Pages.
+
+The scorer can also be run directly; `--via api` uses a Claude API key from `.env` (`ANTHROPIC_API_KEY=...`, kept out of git):
+
+```bash
+pip install -r scorer/requirements.txt
+python scorer/daily_table.py --test      # 5 astro-ph and 5 cs.AI papers
+python scorer/daily_table.py --via api   # the current arXiv listing, through the API
+python viewer/serve.py                   # viewer at http://localhost:8000/
+```

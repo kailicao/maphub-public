@@ -49,7 +49,7 @@ def git(repo: Path, *args: str, check: bool = True, env: dict | None = None) -> 
 
 def rebuild_index() -> None:
     """tables/index.json from the Parquet files present: settles a conflict between
-    a pending backfill and a table GitHub's run added meanwhile."""
+    a pending backfill and a table pushed meanwhile from another computer."""
     (TABLES / "index.json").write_text("{}\n", encoding="utf-8")
     dates: dict[dt.date, list[str]] = {}
     for f in TABLES.glob("*/*/*.parquet"):

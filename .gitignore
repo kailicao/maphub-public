@@ -1,6 +1,6 @@
 # maphub: PUBLIC. Code, configuration log and daily tables.
 
-# Secrets: the Claude API key lives here locally; the Action uses a repo secret.
+# Local settings, such as a Claude API key for --via api (none is kept now).
 .env
 .env.*
 

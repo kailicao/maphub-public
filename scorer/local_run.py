@@ -134,6 +134,10 @@ def publish(confirm: bool) -> None:
         return
     message = combined(messages)
     print("--- commit message ---\n" + message + "----------------------")
+    if confirm and not sys.stdin.isatty():
+        # No terminal to answer in (e.g. a command run from a chat): leave the commits waiting.
+        print("Not pushed: no terminal to confirm in. Run `mh p` in a terminal, or `mh p --yes`.")
+        return
     if confirm and input("Commit and push? [Y/n] ").strip().lower() not in ("", "y", "yes"):
         print("Not pushed; the commits wait locally.")
         return

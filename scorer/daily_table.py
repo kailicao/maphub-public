@@ -6,8 +6,8 @@ Design: lsap-meth/midas-arxiv-preprint-hub.md (section "Daily table").
     python scorer/daily_table.py                # the current listing
     python scorer/daily_table.py 2026-10-05     # same, but check the date first
     python scorer/daily_table.py --test         # 5 astro-ph + 5 cs.AI papers, outputs in the work dir
-    python scorer/daily_table.py --batch        # Message Batches API (half price, slower)
-    python scorer/daily_table.py 2025-03-04     # a past date: Claude Code, listed columns only
+    python scorer/daily_table.py --via api --batch   # Message Batches API (half price, slower)
+    python scorer/daily_table.py 2025-03-04     # a past date: opted-in columns only
     python scorer/daily_table.py 2026-10-05 --backfill   # a missed day, scored like a daily run
 
 Steps:
@@ -32,14 +32,13 @@ Participants are the folders of the portfolios repo that hold a portfolio.md;
 the folder name is the participant's pseudonym and column name.
 
 Two ways to send requests (--via):
+  claude-code  The default. Claude Code's print mode (claude -p), on whichever
+               seat the claude command is signed in to. Only the participants
+               named in MAPHUB_OWN_PARTICIPANTS (environment or .env,
+               comma-separated) are scored; scorer/local_run.py sets it to every
+               active participant.
   api          The Claude API, with ANTHROPIC_API_KEY from the environment or
                the repo root's .env file, which .gitignore keeps out of git.
-               Default for the current listing.
-  claude-code  Claude Code's print mode (claude -p), on whichever seat the
-               claude command is signed in to. Only the participants named in
-               MAPHUB_OWN_PARTICIPANTS (in .env, comma-separated) are scored:
-               the columns that seat may be used for. Default for past dates
-               (the legacy survey).
                The API key is withheld from Claude Code, so it never bills
                the API account.
 
@@ -1008,7 +1007,7 @@ def main() -> int:
     ap.add_argument("--meta-only", action="store_true",
                     help="write a date's metadata fallback (papers DataCite lacks) from its table, without scoring")
     ap.add_argument("--via", choices=["api", "claude-code"],
-                    help="how to send requests (default: claude-code for a past date, else api)")
+                    help="how to send requests (default: claude-code)")
     ap.add_argument("--model", help="with --test: try this model instead of the configured one")
     ap.add_argument("--effort", help="with --test: try this effort level ('none' to omit it)")
     ap.add_argument("--portfolios", type=Path, default=ROOT / "maphub-portfolios")
@@ -1024,7 +1023,7 @@ def main() -> int:
     # A listing dated before today (Eastern time) is a past date.
     past = args.date is not None and args.date < dt.datetime.now(EASTERN).date()
     legacy = past and not args.backfill  # a past date is the legacy survey unless backfilled
-    via = args.via or ("claude-code" if legacy else "api")
+    via = args.via or "claude-code"
     if via == "claude-code" and args.batch:
         ap.error("--batch works only with --via api")
 

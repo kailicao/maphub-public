@@ -159,7 +159,7 @@ Then talk the draft through with me. Ask, one question at a time, about (a) pape
 | `DEVELOPMENT.md` | how MapHub works and why: the daily table, the prompts, the measurements and budget, versions, plans and open questions |
 | `CLAUDE.md` | the operations file for an AI assistant: setting up the host computer and running MapHub day to day |
 | `config-log.json` | every scoring configuration, with the date it took effect |
-| `scorer/` | `daily_table.py`, which fetches a day's papers, scores them with Claude (through Claude Code or the API) and writes the tables; `local_run.py`, the daily routine around it |
+| `scorer/` | `daily_table.py`, which fetches a day's papers, scores them with Claude (through Claude Code or the API) and writes the tables; `local_run.py`, the daily routine around it (`mh`); `driver.py`, which runs that routine unattended (`mh -d`) |
 | `viewer/` | the web viewer (`index.html`, `viewer.js`, `viewer.css`, and its icon: `favicon.svg` with PNG versions) and `serve.py`, a local server for testing |
 | `tables/` | the daily tables (written by the scorer; CC BY 4.0) |
 | `.github/workflows/` | publishing the viewer and tables on GitHub Pages |

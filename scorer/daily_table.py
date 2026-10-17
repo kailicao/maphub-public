@@ -111,7 +111,9 @@ PAGE = 500  # results per arXiv API page
 DAILY_STATUSES = ("active", "no-legacy")  # participants scored on each new listing
 LEGACY_STATUSES = ("active",)  # participants scored on past listings (the legacy survey)
 MAX_TOKENS = 16000
-SCORE_ATTEMPTS = 3  # direct mode: tries per chunk when the reply is unusable
+SCORE_ATTEMPTS = 3  # tries per chunk when the reply is unusable
+MAX_FAILS = 6  # failed requests in a row, across a run, before it stops (two chunks' tries)
+USAGE_LIMIT = re.compile(r"hit your [\w -]*limit", re.I)  # Claude Code's message, with the reset time
 BATCH_ROUNDS = 3  # batch mode: resubmissions of failed requests
 BATCH_POLL = 60
 CLAUDE_CODE_TIMEOUT = 900  # seconds per request through Claude Code
@@ -177,6 +179,29 @@ PROMPTS["v1"].update({"head": PROMPTS["v0"]["head"], "paper": PROMPTS["v0"]["pap
 
 class MapHubError(Exception):
     pass
+
+
+class ScoringStopped(MapHubError):
+    """A usage limit, or MAX_FAILS failed requests in a row: the run stops, and the next
+    run resumes from the saved chunks."""
+
+
+_fails = 0  # failed requests in a row, across the run
+
+
+def request_failed(error) -> None:
+    """Count a failed request; stop the run at a usage limit or MAX_FAILS failures in a row."""
+    global _fails
+    _fails += 1
+    if USAGE_LIMIT.search(str(error)):
+        raise ScoringStopped("Claude Code reports a usage limit")
+    if _fails >= MAX_FAILS:
+        raise ScoringStopped(f"{_fails} requests failed in a row (a usage limit or an outage?)")
+
+
+def request_ok() -> None:
+    global _fails
+    _fails = 0
 
 
 class PartialScores(MapHubError):
@@ -836,7 +861,9 @@ def score_direct(client, cfg, jobs, prefixes, portfolios, scores_dir) -> None:
                 log(f"  [{n}/{len(jobs)}] {who} chunk {k}: attempt {attempt} failed: {e}")
                 if isinstance(e, anthropic.APIStatusError) and e.status_code < 500 and e.status_code != 429:
                     raise  # a bad request or credentials problem will not fix itself
+                request_failed(e)
                 continue
+            request_ok()
             write_json(
                 scores_dir / who / f"chunk{k}.json",
                 {"ids": [p["id"] for p in chunk], "scores": scores, "usage": usage,
@@ -896,7 +923,9 @@ def score_claude_code(cfg, jobs, prefixes, portfolios, scores_dir) -> None:
                     continue
                 except (MapHubError, json.JSONDecodeError, subprocess.TimeoutExpired) as e:
                     log(f"  [{n}/{len(jobs)}] {who} chunk {k}: attempt {attempt} failed: {e}")
+                    request_failed(e)
                     continue
+                request_ok()
                 write_json(
                     scores_dir / who / f"chunk{k}.json",
                     {"ids": [p["id"] for p in chunk], "scores": scores, "usage": usage,
@@ -908,9 +937,8 @@ def score_claude_code(cfg, jobs, prefixes, portfolios, scores_dir) -> None:
                     f"+ cache read {usage['cache_read']}, out {usage['output']}")
                 break
             else:
-                log("  Stopping: Claude Code keeps failing (perhaps a usage limit); "
-                    "rerun later to resume.")
-                return
+                log(f"  [{n}/{len(jobs)}] {who} chunk {k}: no usable reply after {SCORE_ATTEMPTS} tries; "
+                    "left for the next run")
 
 
 def joint_scores_from_text(text: str, chunk: list[dict], who: list[str]) -> dict[str, dict[str, int]]:
@@ -993,7 +1021,9 @@ def score_outlines(cfg, via, chunks, portfolios, out_dir) -> None:
                 except (MapHubError, anthropic.APIError, json.JSONDecodeError,
                         subprocess.TimeoutExpired) as e:
                     log(f"  outline chunk {k}: attempt {attempt} failed: {e}")
+                    request_failed(e)
                     continue
+                request_ok()
                 write_json(out_dir / f"chunk{k}.json",
                            {"ids": [p["id"] for p in chunk], "participants": who, "scores": scores,
                             "usage": usage, "seconds": round(seconds, 1), "model": cfg["model"],
@@ -1003,8 +1033,7 @@ def score_outlines(cfg, via, chunks, portfolios, out_dir) -> None:
                     f"{usage['cache_write']} + cache read {usage['cache_read']}, out {usage['output']}")
                 break
             else:
-                log("  Stopping: the outline pass keeps failing (perhaps a usage limit); rerun later to resume.")
-                return
+                log(f"  outline chunk {k}: no usable reply after {SCORE_ATTEMPTS} tries; left for the next run")
 
 
 def outline_done(out_dir: Path, k: int, chunk: list[dict], who: list[str]) -> bool:
@@ -1600,6 +1629,9 @@ def main() -> int:
             write_commit_message(args, date, cfg, via, sorted(scores), len(papers), len(dupes),
                                  sum(len(read_json(m)) for m in meta), promoted=promoted)
         return 0
+    except ScoringStopped as e:
+        log(f"Stopping: {e}; the requests saved so far stay in the work dir, and a rerun resumes. No table written.")
+        return 2
     except MapHubError as e:
         log(f"Error: {e}")
         return 1

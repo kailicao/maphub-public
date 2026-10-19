@@ -175,6 +175,19 @@ Return only JSON, one object per paper in the order given: {"id": "<arXiv ID>", 
     },
 }
 PROMPTS["v1"].update({"head": PROMPTS["v0"]["head"], "paper": PROMPTS["v0"]["paper"]})
+# v2: v1's wording, with the instructions and the portfolio (or joint outline) in the system
+# prompt and only the papers in the message, so that a run's requests share a cacheable prefix
+# (DEVELOPMENT.md, Caching test).
+PROMPTS["v2"] = {
+    "head": PROMPTS["v1"]["head"].replace("The papers come first, then the portfolio.",
+                                          "The portfolio is below; the papers come in the message."),
+    "outline_head": PROMPTS["v1"]["outline_head"].replace(
+        "The papers come first, then the portfolios, each labelled with the subject's pseudonym.",
+        "The portfolios, each labelled with the subject's pseudonym, are below; the papers come in the message."),
+    "paper": PROMPTS["v1"]["paper"],
+    "system": True,
+}
+assert PROMPTS["v2"]["head"] != PROMPTS["v1"]["head"] and PROMPTS["v2"]["outline_head"] != PROMPTS["v1"]["outline_head"]
 
 
 class MapHubError(Exception):
@@ -583,6 +596,75 @@ def oai_cover(setspec: str, start: dt.datetime, end: dt.datetime) -> None:
     write_json(state_path, state)
 
 
+def id_month(arxiv_id: str) -> str:
+    """The YYMM of an arXiv ID: '2608.01234' -> '2608', 'astro-ph/0501123' -> '0501'."""
+    m = re.search(r"(?:^|/)(\d{4})(?:\.\d+|\d{3})(?:v\d+)?$", arxiv_id)
+    return m.group(1) if m else ""
+
+
+CHECK_TRIES = 3  # tries for a month whose listing page cannot be read
+
+
+def oai_month_check(listing: str, setspec: str) -> None:
+    """Compare the OAI-PMH cache with arXiv's monthly listing page and warn when they differ.
+
+    A month (its IDs, that is its announcements) is checked once the cache starts by its first
+    day (a harvest keeps every record changed since, and a paper announced in the month changed
+    then at the latest) and was harvested a few days after it ends. Its papers are read from the
+    cache files of the month and the six before, by submission month, since papers held for
+    moderation keep their earlier submission dates (of August 2026's cs.AI IDs, 544 were submitted
+    in April to July). arXiv's page counts every entry, cross-lists included, as the set does
+    (equal for astro-ph in Jul and Aug 2026 and cs.AI in Aug 2026). Advisory: one request per
+    month, at most two months per call; a month whose page cannot be read is tried again on later
+    calls, up to CHECK_TRIES times. state.json keeps, per month, [cache count, arXiv's total] or
+    {"tries": n}."""
+    state_path = OAI_CACHE / "state.json"
+    state = read_json(state_path) if state_path.exists() else {}
+    span = state.get(setspec)
+    if not span:
+        return
+    checked = state.setdefault("checked", {}).setdefault(setspec, {})
+    lookback = 6  # months of submission files read for each month's IDs
+    start = dt.date.fromisoformat(span["from"])
+    month = start if start.day == 1 else (start.replace(day=1) + dt.timedelta(days=32)).replace(day=1)
+    last = dt.date.fromisoformat(span["harvested"]) - dt.timedelta(days=OAI_SETTLE_DAYS)
+    todo = []
+    while (month + dt.timedelta(days=32)).replace(day=1) <= last:
+        result = checked.get(month.strftime("%Y-%m"))
+        if result is None or (isinstance(result, dict) and result.get("tries", 0) < CHECK_TRIES):
+            todo.append(month)
+        month = (month + dt.timedelta(days=32)).replace(day=1)
+    folder = OAI_CACHE / setspec.replace(":", "_")
+    for month in todo[:2]:  # the earliest first: the backfill's front
+        yymm, key = month.strftime("%y%m"), month.strftime("%Y-%m")
+        ids = set()
+        for back in range(lookback + 1):
+            path = folder / f"{(month.replace(day=15) - dt.timedelta(days=30 * back)).strftime('%Y-%m')}.jsonl"
+            if path.exists():
+                for line in open(path, encoding="utf-8"):
+                    paper_id = json.loads(line)["id"]
+                    if id_month(paper_id) == yymm:
+                        ids.add(paper_id)
+        time.sleep(ARXIV_PAUSE)
+        try:
+            page = http_get(f"https://arxiv.org/list/{listing}/{key}?skip=0&show=25").decode("utf-8", "replace")
+            found = re.search(r"Total of ([\d,]+) entries", page)
+            if not found:
+                raise MapHubError("the page gave no total")
+        except Exception as e:  # advisory: never stop a backfill; try the month again later
+            tries = (checked.get(key) or {}).get("tries", 0) + 1
+            checked[key] = {"tries": tries}
+            log(f"  OAI-PMH check for {listing} {key} skipped ({e})" +
+                (f"; not tried again after {tries} tries" if tries >= CHECK_TRIES else "; tried again later"))
+            continue
+        total = int(found.group(1).replace(",", ""))
+        checked[key] = [len(ids), total]
+        if len(ids) != total:
+            log(f"Warning: the OAI-PMH cache holds {len(ids)} of arXiv's {total} {listing} entries for {key}; "
+                f"its listings may be incomplete")
+    write_json(state_path, state)
+
+
 def fetch_past_listing_oai(date: dt.date) -> list[dict]:
     """Rebuild a past listing's new submissions from the OAI-PMH cache by submission time."""
     start, end = listing_window(date)
@@ -593,6 +675,7 @@ def fetch_past_listing_oai(date: dt.date) -> list[dict]:
     for listing in LISTINGS:
         setspec = oai_set(listing)
         oai_cover(setspec, start, end)
+        oai_month_check(listing, setspec)
         for month in months:
             path = OAI_CACHE / setspec.replace(":", "_") / f"{month}.jsonl"
             if path.exists():
@@ -764,6 +847,15 @@ def papers_prefix(prompt: dict, chunk: list[dict], head: str = "head") -> str:
 
 
 def request_params(cfg: dict, prefix: str, portfolio: str) -> dict:
+    prompt = PROMPTS[cfg["prompt"]]
+    if prompt.get("system"):  # v2: instructions and portfolio as the (cached) system prompt
+        params = {"model": cfg["model"], "max_tokens": MAX_TOKENS,
+                  "system": [{"type": "text", "text": prompt["head"] + f"<portfolio>\n{portfolio}\n</portfolio>",
+                              "cache_control": {"type": "ephemeral"}}],
+                  "messages": [{"role": "user", "content": prefix.removeprefix(prompt["head"])}]}
+        if cfg.get("effort"):
+            params["output_config"] = {"effort": cfg["effort"]}
+        return params
     params = {
         "model": cfg["model"],
         "max_tokens": MAX_TOKENS,
@@ -867,7 +959,7 @@ def score_direct(client, cfg, jobs, prefixes, portfolios, scores_dir) -> None:
             write_json(
                 scores_dir / who / f"chunk{k}.json",
                 {"ids": [p["id"] for p in chunk], "scores": scores, "usage": usage,
-                 "seconds": round(seconds, 1), "model": message.model},
+                 "seconds": round(seconds, 1), "model": message.model, "prompt": cfg["prompt"]},
             )
             log(f"  [{n}/{len(jobs)}] {who} chunk {k}: {len(scores)} scores, {seconds:.0f} s, "
                 f"tokens in {usage['input']} + cache write {usage['cache_write']} "
@@ -896,7 +988,15 @@ def score_claude_code(cfg, jobs, prefixes, portfolios, scores_dir) -> None:
             usage, seconds, cost = None, 0.0, 0.0
             for attempt in range(1, SCORE_ATTEMPTS + 1):
                 todo, prefix = still_to_score(cfg, chunk, prefixes[k], got)
-                text = prefix + f"<portfolio>\n{portfolios[who]}\n</portfolio>"
+                prompt = PROMPTS[cfg["prompt"]]
+                if prompt.get("system"):  # v2: instructions and portfolio in the system prompt
+                    system = CLAUDE_CODE_SYSTEM + "\n\n" + prompt["head"] + f"<portfolio>\n{portfolios[who]}\n</portfolio>"
+                    if len(system.encode()) > 120_000:  # one command-line argument is limited to 128 KiB
+                        raise MapHubError(f"{who}'s portfolio is too long for prompt v2's system prompt")
+                    command[command.index("--system-prompt") + 1] = system
+                    text = prefix.removeprefix(prompt["head"])
+                else:
+                    text = prefix + f"<portfolio>\n{portfolios[who]}\n</portfolio>"
                 start = time.monotonic()
                 try:
                     run = subprocess.run(command, input=text, capture_output=True, text=True,
@@ -929,7 +1029,7 @@ def score_claude_code(cfg, jobs, prefixes, portfolios, scores_dir) -> None:
                 write_json(
                     scores_dir / who / f"chunk{k}.json",
                     {"ids": [p["id"] for p in chunk], "scores": scores, "usage": usage,
-                     "seconds": round(seconds, 1), "model": cfg["model"], "via": "claude-code",
+                     "seconds": round(seconds, 1), "model": cfg["model"], "prompt": cfg["prompt"], "via": "claude-code",
                      "api_equivalent_usd": round(cost, 6) if cost else None},
                 )
                 log(f"  [{n}/{len(jobs)}] {who} chunk {k}: {len(scores)} scores, {seconds:.0f} s, "
@@ -971,25 +1071,32 @@ def score_outlines(cfg, via, chunks, portfolios, out_dir) -> None:
         "required": ["id", "scores"]}}}, "required": ["papers"]})
     client = anthropic.Anthropic() if via == "api" else None
     env = {k: v for k, v in os.environ.items() if k not in ("ANTHROPIC_API_KEY", "ANTHROPIC_AUTH_TOKEN")}
+    system = CLAUDE_CODE_SYSTEM + ("\n\n" + prompt["outline_head"] + joint if prompt.get("system") else "")
+    if len(system.encode()) > 120_000:  # one command-line argument is limited to 128 KiB
+        raise MapHubError("the joint outline is too long for prompt v2's system prompt")
     command = ["claude", "-p", "--model", cfg["model"], "--tools", "",
-               "--system-prompt", CLAUDE_CODE_SYSTEM, "--output-format", "json",
+               "--system-prompt", system, "--output-format", "json",
                "--json-schema", schema, "--no-session-persistence", "--setting-sources", ""]
     if cfg.get("effort"):
         command += ["--effort", cfg["effort"]]
     with tempfile.TemporaryDirectory() as empty:
         for k, chunk in enumerate(chunks):
-            if outline_done(out_dir, k, chunk, who):
+            if outline_done(out_dir, k, chunk, who, cfg["prompt"]):
                 continue
             got: dict[str, dict[str, int]] = {}
             usage, seconds, cost = None, 0.0, 0.0
             for attempt in range(1, SCORE_ATTEMPTS + 1):
                 todo = [p for p in chunk if p["id"] not in got]
-                text = papers_prefix(prompt, todo, "outline_head") + joint
+                text = (papers_prefix(prompt, todo, "outline_head").removeprefix(prompt["outline_head"])
+                        if prompt.get("system") else papers_prefix(prompt, todo, "outline_head") + joint)
                 start = time.monotonic()
                 try:
                     if via == "api":
                         params = {"model": cfg["model"], "max_tokens": MAX_TOKENS,
                                   "messages": [{"role": "user", "content": text}]}
+                        if prompt.get("system"):  # v2: the outline head and joint outline, cached
+                            params["system"] = [{"type": "text", "text": prompt["outline_head"] + joint,
+                                                 "cache_control": {"type": "ephemeral"}}]
                         if cfg.get("effort"):
                             params["output_config"] = {"effort": cfg["effort"]}
                         message = client.messages.create(**params)
@@ -1027,7 +1134,7 @@ def score_outlines(cfg, via, chunks, portfolios, out_dir) -> None:
                 write_json(out_dir / f"chunk{k}.json",
                            {"ids": [p["id"] for p in chunk], "participants": who, "scores": scores,
                             "usage": usage, "seconds": round(seconds, 1), "model": cfg["model"],
-                            "via": via, "api_equivalent_usd": round(cost, 6) if cost else None})
+                            "prompt": cfg["prompt"], "via": via, "api_equivalent_usd": round(cost, 6) if cost else None})
                 log(f"  outline chunk {k + 1}/{len(chunks)}: {len(scores)} papers x {len(who)} "
                     f"participants, {seconds:.0f} s, tokens in {usage['input']} + cache write "
                     f"{usage['cache_write']} + cache read {usage['cache_read']}, out {usage['output']}")
@@ -1036,12 +1143,15 @@ def score_outlines(cfg, via, chunks, portfolios, out_dir) -> None:
                 log(f"  outline chunk {k}: no usable reply after {SCORE_ATTEMPTS} tries; left for the next run")
 
 
-def outline_done(out_dir: Path, k: int, chunk: list[dict], who: list[str]) -> bool:
+def outline_done(out_dir: Path, k: int, chunk: list[dict], who: list[str], prompt: str | None = None) -> bool:
+    """A saved outline chunk counts as done for the same papers and participants and, when
+    `prompt` is given, the same prompt version (chunks saved before Oct 19, 2026 carry none: v1)."""
     f = out_dir / f"chunk{k}.json"
     if not f.exists():
         return False
     saved = read_json(f)
-    return saved["ids"] == [p["id"] for p in chunk] and set(saved["participants"]) >= set(who)
+    return (saved["ids"] == [p["id"] for p in chunk] and set(saved["participants"]) >= set(who)
+            and (prompt is None or saved.get("prompt", "v1") == prompt))
 
 
 def score_batch(client, cfg, jobs, prefixes, portfolios, scores_dir, state: Path) -> None:
@@ -1408,7 +1518,14 @@ def write_commit_message(args, date, cfg, via, columns, n_papers, n_skipped, n_m
                           capture_output=True, text=True).stdout.strip() or "unknown"
     top, own = portfolios_repo(args.portfolios)
     source = f"{args.portfolios.name} {head}" if own else f"{args.portfolios.name}/ in {top.name} {head}"
+    # The code that scored the table: a table scored before a code change may be committed
+    # after it (pending backfills are replayed on top of pulled commits), so it names its own.
+    code = subprocess.run(["git", "-C", str(ROOT), "rev-parse", "--short", "HEAD"],
+                          capture_output=True, text=True).stdout.strip() or "unknown"
+    edited = subprocess.run(["git", "-C", str(ROOT), "status", "--porcelain", "--", "scorer", "config-log.json"],
+                            capture_output=True, text=True).stdout.strip()
     lines = [f"Table for {date.isoformat()} (via {via})", "",
+             f"Code: {ROOT.name} {code}" + (" with local changes" if edited else ""),
              f"Portfolios: {source}",
              f"Configuration: entry effective {cfg['effective']} ({cfg['model']}, "
              f"effort {cfg.get('effort') or 'default'}, prompt {cfg['prompt']})",
@@ -1547,8 +1664,9 @@ def main() -> int:
             f"via {via}" + ("" if cfg["cache"] or via != "api" or two_pass else "; no caching (one participant)"))
 
         def done(folder: Path, who: str, k: int, chunk: list[dict]) -> bool:
-            f = folder / who / f"chunk{k}.json"
-            return f.exists() and read_json(f)["ids"] == [p["id"] for p in chunk]
+            f = folder / who / f"chunk{k}.json"  # same papers and prompt version (none saved before Oct 19: v1)
+            return (f.exists() and read_json(f)["ids"] == [p["id"] for p in chunk]
+                    and read_json(f).get("prompt", "v1") == cfg["prompt"])
 
         def run_jobs(folder: Path, jobs, prefixes, serve: dict, job_cfg: dict) -> None:
             if not jobs:
@@ -1569,7 +1687,7 @@ def main() -> int:
             outline_dir = scores_dir / "outline"
             log(f"Outline pass: {len(chunks)} requests, all participants at once")
             score_outlines(cfg, via, chunks, portfolios, outline_dir)
-            left = [k for k, c in enumerate(chunks) if not outline_done(outline_dir, k, c, list(portfolios))]
+            left = [k for k, c in enumerate(chunks) if not outline_done(outline_dir, k, c, list(portfolios), cfg["prompt"])]
             if left:
                 summarize(sorted(outline_dir.glob("chunk*.json")))
                 log(f"Incomplete: {len(left)} outline requests failed; rerun to resume. No table written.")

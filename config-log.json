@@ -25,5 +25,19 @@
   "fallbacks": "default",
   "threshold": 10,
   "note": "Two passes: every paper is scored for all participants at once against their outlines (the joint outline: each portfolio's title, Overview and topics' Next and Expertise lines); papers whose outline score is 10 or more are scored again against the participant's full portfolio with v0's wording, and other cells keep their outline scores. About a third of v0's usage on the Oct 14 and Sep 8 listings (DEVELOPMENT.md, Two-pass test)."
+ },
+ {
+  "effective": "2026-10-19",
+  "model": "claude-opus-5-5",
+  "effort": "low",
+  "prompt": "v2",
+  "input": "abstract",
+  "listing": "new",
+  "listings": ["astro-ph", "cs.AI"],
+  "categories": ["astro-ph", "astro-ph.CO", "astro-ph.EP", "astro-ph.GA", "astro-ph.HE", "astro-ph.IM", "astro-ph.SR", "cs.AI"],
+  "chunk_size": 50,
+  "fallbacks": "default",
+  "threshold": 10,
+  "note": "v1's two passes and wording, with the instructions and the portfolio (or the joint outline) in the system prompt and only the papers in the message, so that a run's requests share a cacheable prefix (DEVELOPMENT.md, Caching test)."
  }
 ]

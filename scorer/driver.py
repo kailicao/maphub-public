@@ -4,7 +4,8 @@
     mh -d, --drive    start the driver (in the background: nohup mh -d >/dev/null 2>&1 &)
     mh --status       what the driver is doing, and the commits waiting to be pushed
     mh --hold         keep the listing under review from being pushed (push later with mh -p)
-    mh --stop         stop the driver after the current day (a run in progress resumes later)
+    mh --stop         stop the driver once the listing it is scoring is done, or at once if it is
+                      sleeping or waiting for review; unpushed commits wait for mh -p
 
 Each weekday from MORNING (Eastern time) it runs `mh -l` until the day's listing
 has a table: a usage limit or a busy arXiv only delays it. The new table is then
@@ -13,8 +14,9 @@ keeps it waiting; otherwise the driver pushes it. The rest of the time it runs
 `mh -bb`, backfilling until the usage limit stops it, and sleeps until the reset
 time Claude Code reports (a few minutes after; FALLBACK if none is given).
 Listings missed while a weekly limit lasts are gaps that `mh -bb` fills first once
-it resets. When the morning comes during a backfill, the backfill stops after the
-day it is scoring. The driver logs to .cache/driver/driver-<month>.log (the
+it resets. Code pushed from another computer is picked up on its own: every run pulls
+first, and when the scorer's code has changed the driver restarts itself between runs. When the morning comes during a backfill, the backfill stops after the
+listing it is scoring. The driver logs to .cache/driver/driver-<month>.log (the
 last two months kept).
 """
 
@@ -77,7 +79,7 @@ def status(doing: str, until: dt.datetime | None = None) -> None:
 
 def run(*args: str, watch_morning: bool = False) -> tuple[int, str]:
     """Run local_run.py, logging its output; with watch_morning, ask it to yield
-    (stop after the current day) once the morning listing is due."""
+    (stop once the listing it is scoring is done) when the morning listing is due."""
     log(f"$ mh {' '.join(args)}")
     with open(log_path(), "a", encoding="utf-8") as out:
         proc = subprocess.Popen([*RUNNER, *args], stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
@@ -89,7 +91,7 @@ def run(*args: str, watch_morning: bool = False) -> tuple[int, str]:
             lines.append(line)
             if watch_morning and morning_due() and not YIELD.exists():
                 YIELD.touch()
-                log("the morning listing is due: the backfill stops after this day")
+                log("the morning listing is due: the backfill stops after this listing")
         code = proc.wait()
     YIELD.unlink(missing_ok=True)
     log(f"exit {code}")
@@ -198,9 +200,15 @@ def running() -> bool:
         return False
 
 
+def code_version() -> str:
+    """The scorer's code as committed (the tree of scorer/), to notice a pulled change."""
+    return subprocess.run(["git", "-C", str(ROOT), "rev-parse", "HEAD:scorer"],
+                          capture_output=True, text=True).stdout.strip()
+
+
 def drive() -> int:
     STATE.mkdir(parents=True, exist_ok=True)
-    if running():
+    if running() and PID.read_text().strip() != str(os.getpid()):  # not this driver restarting itself
         print(f"The driver is already running (pid {PID.read_text().strip()}); `mh --stop` stops it.")
         return 1
     PID.write_text(f"{os.getpid()}\n")
@@ -208,8 +216,16 @@ def drive() -> int:
         flag.unlink(missing_ok=True)
     signal.signal(signal.SIGTERM, lambda *_: STOP.touch())
     log(f"driver started (pid {os.getpid()})")
+    started = code_version()
     try:
         while not STOP.exists():
+            # Code pickup: each run pulls first, so code pushed from another computer reaches
+            # the runs on its own; when the scorer's own code changed, the driver restarts in
+            # place (between runs, so no listing is cut short) to run the new code too.
+            if (current := code_version()) and started and current != started:
+                log(f"the scorer's code changed ({started[:7]} -> {current[:7]}); restarting the driver")
+                status("restarting with new code")
+                os.execv(sys.executable, [sys.executable, *sys.argv])
             if morning_due():
                 status("scoring the latest listing (mh -l)")
                 code, output = run("-l")

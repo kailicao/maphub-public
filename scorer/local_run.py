@@ -11,7 +11,8 @@
     mh -d, --drive       run the daily routine unattended (scorer/driver.py): mh -l each
                          weekday morning, mh -bb the rest of the time
     mh --status, --hold, --stop    the driver's state; keep a listing under review from
-                         being pushed; stop the driver after the current day
+                         being pushed; stop the driver once the listing it is
+                         scoring is done (at once if it is sleeping or waiting)
     --via api            score through the Claude API (ANTHROPIC_API_KEY in .env)
                          instead of Claude Code
 
@@ -166,7 +167,7 @@ def date_span(dates: list[str]) -> str:
     return ", ".join(parts) + (f", {days[0].year}" if one_year else "")
 
 
-SHARED = ("Portfolios:", "Configuration:", "Columns:")  # provenance lines a group of tables shares
+SHARED = ("Code:", "Portfolios:", "Configuration:", "Columns:")  # provenance lines a group of tables shares
 PAPERS = re.compile(r"^Papers: (\d+)(?: \((\d+) already scored on another date, left out\))?$")
 PROMOTED = re.compile(r"^Full portfolio \(outline score (\d+) or more\): (.*)$")
 
@@ -310,7 +311,7 @@ def main() -> int:
     mode.add_argument("-d", "--drive", action="store_true", help="run the daily routine unattended (scorer/driver.py)")
     mode.add_argument("--status", action="store_true", help="what the driver is doing")
     mode.add_argument("--hold", action="store_true", help="keep the listing under review from being pushed")
-    mode.add_argument("--stop", action="store_true", help="stop the driver after the current day")
+    mode.add_argument("--stop", action="store_true", help="stop the driver once the listing it is scoring is done (at once if it is sleeping or waiting for review)")
     ap.add_argument("-y", "--yes", action="store_true", help="push without asking to confirm the message")
     ap.add_argument("--via", choices=["claude-code", "api"], default="claude-code",
                     help="score through Claude Code (default) or the Claude API (ANTHROPIC_API_KEY in .env)")
@@ -323,7 +324,9 @@ def main() -> int:
             return driver.report()
         if args.hold:
             return driver.flag(driver.HOLD, "Held: the driver will not push the listing under review; push it with `mh -p`.")
-        return driver.flag(driver.STOP, "The driver stops after the current day; `mh --status` shows when.")
+        return driver.flag(driver.STOP, "The driver stops once it finishes the listing it is scoring, or at once if it is sleeping "
+                           "or waiting for review; commits it has not pushed wait for `mh -p`. "
+                           "`mh --status` shows when it has stopped.")
     global VIA
     VIA = args.via
     if args.back_all:

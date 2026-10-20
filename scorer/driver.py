@@ -16,9 +16,10 @@ time Claude Code reports (a few minutes after; FALLBACK if none is given).
 Listings missed while a weekly limit lasts are gaps that `mh -bb` fills first once
 it resets. Code pushed from another computer is picked up on its own: every run pulls
 first (restarting with new scorer code before it scores), and when the scorer's code
-has changed the driver restarts itself between runs. When the morning comes during a backfill, the backfill stops after the
-listing it is scoring. The driver logs to .cache/driver/driver-<month>.log (the
-last two months kept).
+has changed the driver restarts itself between runs. When the morning comes during a
+backfill, the backfill stops after the listing it is scoring. The driver logs to
+.cache/driver/driver-<date>.log, one file a day, all kept (a run's output stays in the
+file of the day it started).
 """
 
 from __future__ import annotations
@@ -47,7 +48,6 @@ MARGIN = dt.timedelta(minutes=3)  # after a reported reset time
 TICK = 60  # seconds between checks while sleeping or waiting
 
 STATE = ROOT / ".cache" / "driver"
-LOG_KEEP = 2  # monthly logs kept: this month and the last
 STATUS = STATE / "status.json"
 PID = STATE / "driver.pid"
 STOP, HOLD, YIELD = STATE / "stop", STATE / "hold", STATE / "yield"  # flags; local_run.py checks YIELD and STOP
@@ -60,12 +60,10 @@ def now() -> dt.datetime:
 
 
 def log_path() -> Path:
-    """This month's log (driver-2026-10.log); older months beyond LOG_KEEP are removed."""
-    path = STATE / f"driver-{now():%Y-%m}.log"
-    if not path.exists():
-        for old in sorted(STATE.glob("driver-*.log"))[:-(LOG_KEEP - 1) or None]:
-            old.unlink()
-    return path
+    """Today's log (driver-2026-10-21.log); a run's output goes to the file it started in.
+    Every log is kept: during the legacy survey a busy day writes about 200 KB, the
+    whole survey about 10-20 MB; once it is done, a file a month will do."""
+    return STATE / f"driver-{now():%Y-%m-%d}.log"
 
 
 def log(message: str) -> None:
@@ -260,7 +258,7 @@ def report() -> int:
     else:
         print("Driver: never started on this computer.")
     print(f"Commits waiting to be pushed: {waiting_commits()}")
-    logs = sorted(STATE.glob("driver-*.log"))
+    logs = sorted(STATE.glob("driver-*.log"), key=lambda p: p.stat().st_mtime)
     if logs:
         print(f"Last lines of {logs[-1].relative_to(ROOT)}:")
         print("".join(logs[-1].read_text(encoding="utf-8").splitlines(keepends=True)[-8:]), end="")

@@ -15,7 +15,8 @@ keeps it waiting; otherwise the driver pushes it. The rest of the time it runs
 time Claude Code reports (a few minutes after; FALLBACK if none is given).
 Listings missed while a weekly limit lasts are gaps that `mh -bb` fills first once
 it resets. Code pushed from another computer is picked up on its own: every run pulls
-first, and when the scorer's code has changed the driver restarts itself between runs. When the morning comes during a backfill, the backfill stops after the
+first (restarting with new scorer code before it scores), and when the scorer's code
+has changed the driver restarts itself between runs. When the morning comes during a backfill, the backfill stops after the
 listing it is scoring. The driver logs to .cache/driver/driver-<month>.log (the
 last two months kept).
 """

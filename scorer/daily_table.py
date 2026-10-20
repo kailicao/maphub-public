@@ -1519,8 +1519,9 @@ def write_commit_message(args, date, cfg, via, columns, n_papers, n_skipped, n_m
     top, own = portfolios_repo(args.portfolios)
     source = f"{args.portfolios.name} {head}" if own else f"{args.portfolios.name}/ in {top.name} {head}"
     # The code that scored the table: a table scored before a code change may be committed
-    # after it (pending backfills are replayed on top of pulled commits), so it names its own.
-    code = subprocess.run(["git", "-C", str(ROOT), "rev-parse", "--short", "HEAD"],
+    # after it (pending backfills are replayed on top of pulled commits), so it names its own:
+    # the last commit that changed scorer/ (HEAD may be a table commit).
+    code = subprocess.run(["git", "-C", str(ROOT), "log", "-1", "--format=%h", "--", "scorer"],
                           capture_output=True, text=True).stdout.strip() or "unknown"
     edited = subprocess.run(["git", "-C", str(ROOT), "status", "--porcelain", "--", "scorer", "config-log.json"],
                             capture_output=True, text=True).stdout.strip()

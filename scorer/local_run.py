@@ -83,6 +83,7 @@ def sync() -> None:
         git(PORTFOLIOS, "pull", "-q", "--ff-only")
     if git(ROOT, "status", "--porcelain", "--untracked-files=no", "--", "tables"):
         raise RunError("tables/ has uncommitted changes; commit or discard them first")
+    before = git(ROOT, "rev-parse", "HEAD:scorer", check=False)
     pulled = subprocess.run(["git", "-C", str(ROOT), "pull", "-q", "--rebase", "--autostash"], capture_output=True, text=True)
     rebasing = lambda: (ROOT / ".git" / "rebase-merge").exists() or (ROOT / ".git" / "rebase-apply").exists()
     if pulled.returncode != 0 and not rebasing():
@@ -95,6 +96,11 @@ def sync() -> None:
         rebuild_index()
         git(ROOT, "add", "tables/index.json", "tables/empty.json")
         git(ROOT, "rebase", "--continue", env={"GIT_EDITOR": "true"}, check=False)
+    # A pull that brought new scorer code restarts this run, so that the run uses it throughout
+    # (the scoring, which runs daily_table.py afresh, would; the folding here would not).
+    if before and git(ROOT, "rev-parse", "HEAD:scorer", check=False) != before:
+        print("The scorer's code changed with the pull; restarting with it.", flush=True)
+        os.execv(sys.executable, [sys.executable, *sys.argv])
 
 
 def active_participants(legacy: bool = False) -> list[str]:

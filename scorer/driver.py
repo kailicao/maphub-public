@@ -3,16 +3,17 @@
 
     mh -d, --drive    start the driver (in the background: nohup mh -d >/dev/null 2>&1 &)
     mh --status       what the driver is doing, and the commits waiting to be pushed
-    mh --hold         keep the listing under review from being pushed (push later with mh -p)
+    mh --hold         keep the listing under review from being pushed (push later with mh -p), when REVIEW is set
     mh --stop         stop the driver once the listing it is scoring is done, or at once if it is
                       sleeping or waiting for review; unpushed commits wait for mh -p
 
 Each weekday from MORNING (Eastern time) it runs `mh -l` until the day's listing
 has a table: a usage limit or a busy arXiv only delays it. The new table is then
-committed and waits REVIEW for the maintainer: `mh -p` pushes it at once, `mh --hold`
-keeps it waiting; otherwise the driver pushes it. The rest of the time it runs
-`mh -bb`, backfilling until the usage limit stops it, and sleeps until the reset
-time Claude Code reports (a few minutes after; FALLBACK if none is given).
+pushed, at once when REVIEW is 0 (the prototype's setting); otherwise it waits REVIEW for
+the maintainer, `mh -p` pushing it at once and `mh --hold` keeping it waiting. The rest of
+the time it runs `mh -bb`, backfilling until the usage limit stops it, and sleeps until the
+reset time Claude Code reports (a few minutes after; FALLBACK if none is given), but never
+longer than WAKE, so that a seat switched meanwhile is used.
 Listings missed while a weekly limit lasts are gaps that `mh -bb` fills first once
 it resets. Code pushed from another computer is picked up on its own: every run pulls
 first (restarting with new scorer code before it scores), and when the scorer's code
@@ -40,8 +41,13 @@ sys.path.insert(0, str(ROOT / "scorer"))
 import daily_table as dtab  # noqa: E402
 
 EASTERN = ZoneInfo("America/New_York")
-MORNING = dt.time(6, 0)  # Eastern time; arXiv announces at 20:00 the evening before
-REVIEW = dt.timedelta(hours=1)  # how long a new listing waits before the driver pushes it
+# The schedule, the prototype's choices; a MapHub sets its own (RUNNING.md, Setting up a copy, step 6).
+MORNING = dt.time(2, 0)  # Eastern time; arXiv announces at 20:00 the evening before, and a listing
+                         # scored from 02:00 is in the viewer by about 07:00 even after a usage-limit wait
+REVIEW = dt.timedelta(0)  # how long a new listing waits for the maintainer before the driver pushes it
+                          # (0: at once, as in the prototype since Oct 21, 2026)
+WAKE = dt.timedelta(hours=2.5)  # the longest sleep: at least twice in five hours the driver tries again,
+                                # so a seat switched during a usage-limit sleep is used
 FALLBACK = dt.timedelta(hours=5)  # sleep after a stop when no reset time is given
 RETRY = dt.timedelta(minutes=30)  # sleep after a failure that is not a usage limit
 MARGIN = dt.timedelta(minutes=3)  # after a reported reset time
@@ -137,7 +143,9 @@ def morning_due() -> bool:
 
 
 def sleep_until(when: dt.datetime, doing: str) -> None:
-    """Sleep until `when`, waking early for a stop request or the morning listing."""
+    """Sleep until `when`, but no longer than WAKE, waking early for a stop request or the
+    morning listing."""
+    when = min(when, now() + WAKE)
     status(doing, when)
     log(f"{doing} until {when:%a %Y-%m-%d %H:%M} ET")
     was_due = morning_due()
@@ -156,6 +164,9 @@ def waiting_commits() -> int:
 def review_and_push() -> None:
     """Give the maintainer REVIEW to look at the waiting commits, then push them."""
     if not waiting_commits():
+        return
+    if REVIEW <= dt.timedelta(0):
+        run("-p", "-y")
         return
     deadline = now() + REVIEW
     HOLD.unlink(missing_ok=True)

@@ -329,6 +329,9 @@ def main() -> int:
         if args.status:
             return driver.report()
         if args.hold:
+            if driver.REVIEW <= dt.timedelta(0):
+                print("Nothing to hold: the driver pushes a new listing at once (REVIEW is 0 in scorer/driver.py).")
+                return 0
             return driver.flag(driver.HOLD, "Held: the driver will not push the listing under review; push it with `mh -p`.")
         return driver.flag(driver.STOP, "The driver stops once it finishes the listing it is scoring, or at once if it is sleeping "
                            "or waiting for review; commits it has not pushed wait for `mh -p`. "

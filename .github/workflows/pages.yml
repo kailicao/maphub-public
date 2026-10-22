@@ -2,14 +2,17 @@
 #
 # One-time setup: Settings > Pages > Build and deployment > Source: GitHub Actions.
 #
-# Runs on every push that changes the viewer, the tables or the configuration
-# log, such as the daily push from scorer/local_run.py.
+# Runs on every push to the tables branch (the code of main with the daily
+# tables, which only the host computer pushes) that changes the viewer, the
+# tables or the configuration log: the daily push from scorer/local_run.py, or
+# its merge of new code from main. Pushes to main deploy nothing.
+# Settings > Environments > github-pages > Deployment branches must allow tables.
 
 name: Publish viewer
 
 on:
   push:
-    branches: [main]
+    branches: [tables]
     paths: ["viewer/**", "tables/**", "config-log.json", ".github/workflows/pages.yml"]
   workflow_dispatch:
 
@@ -24,6 +27,7 @@ concurrency:
 
 jobs:
   deploy:
+    if: github.ref == 'refs/heads/tables'  # a manual run from main would publish no tables
     runs-on: ubuntu-latest
     environment:
       name: github-pages

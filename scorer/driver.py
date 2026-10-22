@@ -16,7 +16,7 @@ reset time Claude Code reports (a few minutes after; FALLBACK if none is given),
 longer than WAKE, so that a seat switched meanwhile is used.
 Listings missed while a weekly limit lasts are gaps that `mh -bb` fills first once
 it resets. Code pushed from another computer is picked up on its own: every run pulls
-first (restarting with new scorer code before it scores), and when the scorer's code
+and merges main first (restarting with new scorer code before it scores), and when the scorer's code
 has changed the driver restarts itself between runs. When the morning comes during a
 backfill, the backfill stops after the listing it is scoring. The driver logs to
 .cache/driver/driver-<date>.log, one file a day, all kept (a run's output stays in the
@@ -229,9 +229,9 @@ def drive() -> int:
     started = code_version()
     try:
         while not STOP.exists():
-            # Code pickup: each run pulls first, so code pushed from another computer reaches
-            # the runs on its own; when the scorer's own code changed, the driver restarts in
-            # place (between runs, so no listing is cut short) to run the new code too.
+            # Code pickup: each run pulls and merges main first, so code pushed from another
+            # computer reaches the runs on its own; when the scorer's own code changed, the driver
+            # restarts in place (between runs, so no listing is cut short) to run the new code too.
             if (current := code_version()) and started and current != started:
                 log(f"the scorer's code changed ({started[:7]} -> {current[:7]}); restarting the driver")
                 status("restarting with new code")

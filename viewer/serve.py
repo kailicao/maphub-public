@@ -3,6 +3,8 @@
 
     python viewer/serve.py            # then open http://localhost:8000/
     python viewer/serve.py --tables .work/demo-tables   # serve other tables
+    python viewer/serve.py --tables ../maphub-tables/tables   # on main, which holds no tables:
+                                      # the tables of a checkout of the tables branch
 
 /            -> viewer/ (index.html, viewer.js, viewer.css)
 /tables/...  -> tables/ at the repo root (or the folder given by --tables)

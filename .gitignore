@@ -1,4 +1,8 @@
-# maphub: PUBLIC. Code, configuration log and daily tables.
+# maphub: PUBLIC. Code and configuration log on main; the daily tables on the
+# tables branch (main merged in, plus tables/, which the host adds with git add -f).
+
+# The daily tables: only the tables branch holds them
+tables/
 
 # Local settings, such as a Claude API key for --via api (none is kept now).
 .env

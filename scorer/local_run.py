@@ -23,7 +23,9 @@ every participant with status active or no-legacy, backfills (the legacy survey)
 for every participant with status active, scored through Claude Code by default.
 One commit per day: backfills are committed locally and wait, and
 the next --latest (or --push) folds them into one commit, keeping each table's
-provenance from the scorer. The push starts "Publish viewer".
+provenance from the scorer. The host works on the tables branch (the code of main
+with the tables): each run first merges any new code from main and pushes the merge,
+so that waiting backfills stay on top. Pushes to it start "Publish viewer".
 """
 
 from __future__ import annotations
@@ -45,6 +47,7 @@ TABLES = ROOT / "tables"
 PORTFOLIOS = ROOT / "maphub-portfolios"
 WORK = ROOT / ".work"
 VIA = "claude-code"  # how the scorer sends requests (--via)
+CODE = "main"  # the branch the code is developed on; the host runs on a branch of tables merged from it
 SUBJECT = re.compile(r"^Table for (\d{4}-\d{2}-\d{2}) \(via ([\w-]+)\)$")
 
 
@@ -96,11 +99,41 @@ def sync() -> None:
         rebuild_index()
         git(ROOT, "add", "tables/index.json", "tables/empty.json")
         git(ROOT, "rebase", "--continue", env={"GIT_EDITOR": "true"}, check=False)
+    merge_code()
     # A pull that brought new scorer code restarts this run, so that the run uses it throughout
     # (the scoring, which runs daily_table.py afresh, would; the folding here would not).
     if before and git(ROOT, "rev-parse", "HEAD:scorer", check=False) != before:
         print("The scorer's code changed with the pull; restarting with it.", flush=True)
         os.execv(sys.executable, [sys.executable, *sys.argv])
+
+
+def merge_code() -> None:
+    """Code pickup on the tables branch: merge new commits of main into the branch as last
+    pushed, push the merge, and replay any waiting table commits on top. main never
+    touches tables/ and the tables branch nothing else, so the merge has no conflicts."""
+    branch = git(ROOT, "branch", "--show-current")
+    if branch == CODE and subprocess.run(["git", "-C", str(ROOT), "check-ignore", "-q", "--no-index", "tables/index.json"]).returncode == 0:
+        raise RunError(f"this is {CODE}, which leaves tables/ out; run on the tables branch "
+                       "(`git switch tables`, or `git switch -c tables` in a new copy: RUNNING.md, Setting up a copy, step 1)")
+    if branch in ("", CODE):  # on main in a MapHub that keeps its tables there, or detached
+        return
+    git(ROOT, "fetch", "-q", "origin", CODE)
+    if subprocess.run(["git", "-C", str(ROOT), "merge-base", "--is-ancestor", f"origin/{CODE}", "@{upstream}"]).returncode == 0:
+        return
+    upstream = git(ROOT, "rev-parse", "--abbrev-ref", "@{upstream}")  # origin/tables
+    git(ROOT, "checkout", "-q", "--detach", upstream)
+    try:
+        merged = subprocess.run(["git", "-C", str(ROOT), "merge", "-q", "--no-edit", "-m",
+                                 f"Merge {CODE} into {branch}: code pickup", f"origin/{CODE}"], capture_output=True, text=True)
+        if merged.returncode != 0:
+            git(ROOT, "merge", "--abort", check=False)
+            raise RunError(f"merging {CODE} into {branch}: {merged.stderr.strip() or merged.stdout.strip()}; resolve by hand")
+        git(ROOT, "push", "-q", "origin", f"HEAD:{upstream.split('/', 1)[1]}")
+    finally:
+        git(ROOT, "checkout", "-q", branch)
+    git(ROOT, "rebase", "-q", upstream)  # the push moved it to the merge
+    print(f"Merged new code from {CODE} ({git(ROOT, 'log', '-1', '--format=%h', f'origin/{CODE}')}); "
+          f"{git(ROOT, 'rev-list', '--count', '@{upstream}..HEAD')} table commit(s) wait on top.", flush=True)
 
 
 def active_participants(legacy: bool = False) -> list[str]:
@@ -131,7 +164,8 @@ def score(date: dt.date | None, daily: bool = False) -> bool:
 
 def commit_locally() -> str:
     """Commit the table just written with the scorer's provenance message."""
-    git(ROOT, "add", "tables")
+    # -f: main's .gitignore leaves tables/ out, so that only the tables branch holds them
+    git(ROOT, "add", "-A", "-f", "--", "tables", ":(exclude,glob)tables/**/*.tmp")
     git(ROOT, "commit", "-q", "-F", str(WORK / "commit-message.txt"))
     return git(ROOT, "log", "-1", "--format=%s")
 

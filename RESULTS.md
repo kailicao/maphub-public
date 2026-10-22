@@ -17,7 +17,7 @@ tables/
   empty.json                 the dates whose table is empty: no announcement (a holiday)
 ```
 
-Parquet opens in Python, R, Julia, MATLAB and DuckDB, for example:
+The tables are on the repository's tables branch (its main branch holds the code alone): clone that branch (`git clone -b tables …`), or read the files from the viewer's address (`<base>/tables/…`). Parquet opens in Python, R, Julia, MATLAB and DuckDB, for example:
 
 ```python
 import pandas as pd

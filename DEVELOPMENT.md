@@ -116,6 +116,7 @@ MapHub's versions are git tags, each on the last commit of its version, so a cop
 | `v0.6` | Run your own | Oct 13 | Listings as a setting; holidays; Run your own MapHub; the MIT License |
 | `v0.7` | Two passes | Oct 14–15 | Two-pass scoring with the joint outline (prompt v1); portfolios in the standard format; short fold subjects |
 | `v0.8` | Ready for copies | Oct 15 | The README for first readers, the design and operations notes written for any MapHub, portfolios as their own repository or a folder, `portfolios-template/`, versions |
+| `v0.9` | Unattended host | Oct 15–21 | The driver; past listings from arXiv's OAI-PMH records; each run pulls first and restarts with new scorer code, and each table names the code that scored it; prompt v2, with a cached prefix; the OAI-PMH count check; daily driver logs; the morning run from 02:00, pushed at once |
 
 ## Sources
 

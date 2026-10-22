@@ -12,7 +12,7 @@ Every MapHub works the same way. Its code, daily tables and viewer are public, a
 - builds each profile from a portfolio the participant writes and corrects, in a common format, rather than learning it from clicks;
 - publishes its scores, labeled as AI-generated, with each table's commit recording the portfolio version, configuration and code that produced it (the portfolios themselves stay among participants).
 
-In the prototype's tables scored with the current portfolios (70 listings from May 29 to Oct 16, 2026, most of them backfilled), about 6% of a day's new astro-ph papers score 30 or more for each participant, on average: a handful worth reading out of some ninety. For a department, the heatmap can also seed a daily journal club like the astro-ph coffee discussions held in many astronomy departments, across subfields rather than one topic: papers that touch several columns make natural topics, and the participants they score highest for are natural people to invite to lead the discussion, if they wish. Scores come without explanations; each morning's table appears in the viewer after arXiv's 20:00 ET announcement is scored. To run a MapHub of your own, see [Run your own MapHub](#run-your-own-maphub).
+In the prototype's tables scored with the current portfolios (70 listings, May 29 to Sep 1 and Oct 15–16, 2026, most of them backfilled), about 6% of a day's new astro-ph papers score 30 or more for each participant, on average: a handful worth reading out of some ninety. For a department, the heatmap can also seed a daily journal club like the astro-ph coffee discussions held in many astronomy departments, across subfields rather than one topic: papers that touch several columns make natural topics, and the participants they score highest for are natural people to invite to lead the discussion, if they wish. Scores come without explanations; each morning's table appears in the viewer after arXiv's 20:00 ET announcement is scored. To run a MapHub of your own, see [Run your own MapHub](#run-your-own-maphub).
 
 **This repository is the prototype.** It is run by [Kaili Cao](https://kailicao.github.io/), its maintainer, and follows astrophysics (astro-ph) and artificial intelligence (cs.AI) (DEVELOPMENT.md, Listings). Its daily scoring began with the listing of Oct 7, 2026, for five participants, and it is under development; the viewer shows its current participants (the columns) and the days scored so far (the calendar). MapHub, and this prototype, were developed as a team project (a "carpentry") of the [Eric and Wendy Schmidt AI in Science Postdoctoral Fellowship](https://midas.umich.edu/training/postdoctoral-programs/schmidt-ai-in-science-postdoctoral-fellowship/) at the Michigan Institute for Data and AI in Society (MIDAS), led by Kaili Cao with teammates Kyle Heyblom, Eva Albalghiti and Dimitrios Simatos; it grew out of Kaili Cao's own literature workflow and extends it from one person to a community. To join the prototype, read What participants agree to (below) and email kailicao@umich.edu.
 
@@ -26,7 +26,7 @@ MapHub is meant to be copied: a high-energy physics department, say, can run one
 
 In short (the details are in [RUNNING.md](RUNNING.md), Setting up a copy):
 
-1. **Make your copy** of this repository, and delete `tables/`.
+1. **Make your copy** of this repository ("Use this template": its main branch holds the code alone), with a tables branch for your tables.
 2. **Choose the listings** in `config-log.json`.
 3. **Set up the portfolios** from `portfolios-template/`: a private repository of their own, or, if your participants agree to public portfolios, a folder of your copy.
 4. **Make the page yours:** the viewer's wording, colors and icons, this README and `CLAUDE.md`.
@@ -104,7 +104,7 @@ Each paper is scored from its title, authors and abstract against a participant'
 | 30 | The subject probably won't cite it, but it may broaden their view |
 | 0 | Worth a glance at the title, but reading the abstract would waste the subject's time |
 
-The anchors guide the model; they are not calibrated probabilities, so scores rank papers within a column and a day best. Most papers score low for most participants: in the 70 listings scored with the current portfolios (May 29–Oct 16, 2026), 97% of the scores are below 30, and 0.2% of all scores are 60 or above. In a blind rating study (one rater so far; DEVELOPMENT.md, Measurements), reading a listing in score order found about four in five of the rater's top 5% of papers within its top tenth, against about one in three with a word-matching baseline. A research note on MapHub and this study is in preparation. Low scores come from the first pass, against the outline, and are coarse; scores that matter come from the full portfolio. Scores are AI-generated and can be wrong: they are pointers to papers and people, not judgments of anyone's work.
+The anchors guide the model; they are not calibrated probabilities, so scores rank papers within a column and a day best. Most papers score low for most participants: in the 70 listings scored with the current portfolios (May 29–Sep 1 and Oct 15–16, 2026), 97% of the scores are below 30, and 0.2% of all scores are 60 or above. In a blind rating study (one rater so far; DEVELOPMENT.md, Measurements), reading a listing in score order found about four in five of the rater's top 5% of papers within its top tenth, against about one in three with a word-matching baseline. A research note on MapHub and this study is in preparation. Low scores come from the first pass, against the outline, and are coarse; scores that matter come from the full portfolio. Scores are AI-generated and can be wrong: they are pointers to papers and people, not judgments of anyone's work.
 
 ### Terms
 
@@ -117,7 +117,7 @@ The anchors guide the model; they are not calibrated probabilities, so scores ra
 
 ---
 
-**In depth.** The sections below are for participants drafting a portfolio and for anyone who wants the details. This is version 0.8 (DEVELOPMENT.md, Versions). [RUNNING.md](RUNNING.md) covers setting up a copy, participants and portfolios, the repositories, the runs and the configuration log, running unattended, and the stages; [RESULTS.md](RESULTS.md) the tables, their format, the back catalogs and the viewer; [DEVELOPMENT.md](DEVELOPMENT.md) how the scoring works and why: the daily table, the prompts, the measurements and budget behind its choices, versions, plans and open questions.
+**In depth.** The sections below are for participants drafting a portfolio and for anyone who wants the details. This is version 0.9 (DEVELOPMENT.md, Versions). [RUNNING.md](RUNNING.md) covers setting up a copy, participants and portfolios, the repositories, the runs and the configuration log, running unattended, and the stages; [RESULTS.md](RESULTS.md) the tables, their format, the back catalogs and the viewer; [DEVELOPMENT.md](DEVELOPMENT.md) how the scoring works and why: the daily table, the prompts, the measurements and budget behind its choices, versions, plans and open questions.
 
 ## The portfolio-drafting prompt
 
@@ -169,7 +169,7 @@ Then talk the draft through with me. Ask, one question at a time, about (a) pape
 | `config-log.json` | every scoring configuration, with the date it took effect |
 | `scorer/` | `daily_table.py`, which fetches a day's papers, scores them with Claude (through Claude Code or the API) and writes the tables; `local_run.py`, the daily routine around it (`mh`); `driver.py`, which runs that routine unattended (`mh -d`) |
 | `viewer/` | the web viewer (`index.html`, `viewer.js`, `viewer.css`, and its icon: `favicon.svg` with PNG versions) and `serve.py`, a local server for testing |
-| `tables/` | the daily tables (written by the scorer; CC BY 4.0) |
+| `tables/` | the daily tables, on the [tables branch](https://github.com/kailicao/maphub-public/tree/tables/tables) only (written by the scorer; CC BY 4.0) |
 | `.github/workflows/` | publishing the viewer and tables on GitHub Pages |
 | `portfolios-template/` | a minimal start for a MapHub's portfolios: `participants.json` and one portfolio in the format |
 | `maphub-portfolios/` | the portfolios, in the prototype a private repository of its own (left out by `.gitignore`) |

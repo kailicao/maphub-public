@@ -650,15 +650,33 @@ async function mainTop(files, dates) {
   const range = dates.filter((d) => d >= query.from && d <= query.to);
   if (!range.length) return fail(`No tables between ${query.from} and ${query.to}.`);
 
+  // Complete years have small summaries (tables/top/<participant>/<year>.json: each day's
+  // count of scored papers and its scores of 30 or more). From them, the score of the Nth
+  // paper among the summarized days is a floor for the cutoff, so only the days that have a
+  // score at or above it are read, with every day of a year that has no summary yet.
+  const summary = {};
+  for (const year of new Set(range.map((d) => d.slice(0, 4)))) {
+    // A summary that cannot be read only costs speed: its days are read in full.
+    Object.assign(summary, await getOptionalJSON(`${TABLES}top/${encodeURIComponent(query.who)}/${year}.json`, {}).catch(() => ({})));
+  }
+  const known = range.filter((d) => summary[d]);
+  const floor = known.flatMap((d) => summary[d].s).sort((a, b) => b - a)[query.n - 1];
+  const toRead = range.filter((d) => !summary[d] || (floor !== undefined ? summary[d].s[0] >= floor : true));
+  const reading = new Set(toRead);
+  const countedElsewhere = known.filter((d) => !reading.has(d)).reduce((t, d) => t + summary[d].n, 0);
+
   // Read each day's table, a few days at a time, keeping the participant's
   // scores and those of the participants shown beside.
   const scored = []; // {id, file, yymm, date, score, others: {who: score}}
   let done = 0;
   const status = $("status");
-  const progress = () => { status.textContent = `Reading ${done} of ${range.length} days…`; };
+  const progress = () => {
+    status.textContent = `Reading ${done} of ${toRead.length} days` + (toRead.length < range.length ? ` (of ${range.length} in the range; the others cannot reach the top ${query.n})…` : "…");
+  };
   progress();
   try {
-    const queue = range.flatMap((date) => files[date].map((file) => ({ date, file })));
+    const queue = toRead.flatMap((date) => files[date].map((file) => ({ date, file })));
+    const left = Object.fromEntries(toRead.map((date) => [date, files[date].length])); // files still to read, per date
     const worker = async () => {
       for (let job; (job = queue.shift());) {
         const { yymm, rows } = await readTable(job.file);
@@ -668,7 +686,7 @@ async function mainTop(files, dates) {
             scored.push({ id: fullId(yymm, row.id), file: job.file, yymm, date: job.date, score: Number(row[query.who]), others });
           }
         }
-        if (!queue.some((q) => q.date === job.date)) { done++; progress(); }
+        if (--left[job.date] === 0) { done++; progress(); } // a date counts once, when its last file is read
       }
     };
     await Promise.all(Array.from({ length: 6 }, worker));
@@ -681,8 +699,9 @@ async function mainTop(files, dates) {
   status.textContent = `Fetching titles for ${top.length} papers…`;
   const info = await describe(top);
   const shown = top.map((p) => ({ ...p, missing: !info[p.id], ...(info[p.id] ?? UNAVAILABLE) }));
-  renderTop(query, range, scored.length, shown);
-  matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => renderTop(query, range, scored.length, shown));
+  const total = scored.length + countedElsewhere;
+  renderTop(query, range, total, shown);
+  matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => renderTop(query, range, total, shown));
 }
 
 function renderTop(query, range, total, papers) {

@@ -605,6 +605,29 @@ def id_month(arxiv_id: str) -> str:
 CHECK_TRIES = 3  # tries for a month whose listing page cannot be read
 
 
+def listing_month_total(listing: str, month: dt.date) -> int | None:
+    """Papers announced in a listing in a month, from arXiv's monthly listing page: 0 when the
+    page says there were none (as before a category began: astro-ph in March 1992), None when
+    the page cannot be read."""
+    time.sleep(ARXIV_PAUSE)
+    try:
+        page = http_get(f"https://arxiv.org/list/{listing}/{month:%Y-%m}?skip=0&show=25").decode("utf-8", "replace")
+    except Exception:
+        return None
+    if "No updates for this time period" in page:
+        return 0
+    found = re.search(r"Total of ([\d,]+) entries", page)
+    return int(found.group(1).replace(",", "")) if found else None
+
+
+def survey_start(tables: Path) -> dt.date | None:
+    """Where the legacy survey ended: the first listing of the surveyed categories, recorded in
+    tables/survey.json once the backfills reach it (None before then)."""
+    path = tables / "survey.json"
+    return dt.date.fromisoformat(json.loads(path.read_text(encoding="utf-8"))["start"]) if path.exists() else None
+
+
+
 def oai_month_check(listing: str, setspec: str) -> None:
     """Compare the OAI-PMH cache with arXiv's monthly listing page and warn when they differ.
 
@@ -1355,6 +1378,7 @@ def write_tables(tables: Path, date: dt.date, papers, scores: dict[str, dict[str
         written.append(path)
     write_index(tables, date, sorted(by_month))
     write_empty_list(tables)
+    write_top(tables, date)
     return written
 
 
@@ -1455,7 +1479,87 @@ def write_empty_table(tables: Path, date: dt.date, columns: list[str]) -> Path:
     pq.write_table(pa.table(empty), path)
     write_index(tables, date, [yymm])
     write_empty_list(tables)
+    write_top(tables, date)
     return path
+
+
+TOP_FLOOR = 30  # the scores kept in the top-paper summaries: "may broaden their view" and above
+TOP_WRITTEN: list[int] = []  # years whose summaries this run wrote, for the commit message
+
+
+def day_top(tables: Path, date: dt.date) -> dict[str, dict]:
+    """One date's summary per participant: {"n": papers scored, "s": scores >= TOP_FLOOR, highest first}."""
+    counts, kept = {}, {}
+    for yymm in index_dates(tables).get(date.isoformat(), []):
+        t = pq.read_table(table_path(tables, yymm, date))
+        for who in t.column_names:
+            if who != "id":
+                values = [v for v in t.column(who).to_pylist() if v is not None]
+                counts[who] = counts.get(who, 0) + len(values)
+                kept.setdefault(who, []).extend(v for v in values if v >= TOP_FLOOR)
+    return {who: {"n": n, "s": sorted(kept.get(who, []), reverse=True)} for who, n in counts.items()}
+
+
+def save_top(path: Path, data: dict) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    # One date per line keeps the file readable and its diffs small.
+    lines = [f" {json.dumps(d)}: {json.dumps(data[d], separators=(',', ':'))}" for d in sorted(data)]
+    path.write_text("{\n" + ",\n".join(lines) + "\n}\n", encoding="utf-8")
+
+
+def year_complete(tables: Path, year: int) -> bool:
+    """A year is complete once it is over (Eastern time) and every weekday of it has a
+    table, holidays included (they get empty ones); the survey's first year counts from its
+    first listing (survey.json), once the backfills have reached it."""
+    if year >= dt.datetime.now(EASTERN).year:
+        return False
+    start = survey_start(tables)
+    if start and year < start.year:
+        return False
+    have = set(index_dates(tables))
+    day = start if start and start.year == year else dt.date(year, 1, 1)
+    while day.year == year:
+        if day.weekday() < 5 and day.isoformat() not in have:
+            return False
+        day += dt.timedelta(days=1)
+    return True
+
+
+def write_year_top(tables: Path, year: int) -> None:
+    """The top-paper summaries of one complete year, top/<participant>/<year>.json: for each
+    listing date, how many papers the participant has a score for ("n") and their scores of
+    TOP_FLOOR or more, highest first ("s"). The viewer's Top papers reads them first, and then
+    only the days that can hold the top N; a year without a file is read in full. Written
+    once a year is complete, so that a finished year's file never changes with the daily runs."""
+    files: dict[str, dict] = {}
+    for day in sorted(d for d in index_dates(tables) if d.startswith(f"{year}-")):
+        for who, entry in day_top(tables, dt.date.fromisoformat(day)).items():
+            files.setdefault(who, {})[day] = entry
+    for who, data in files.items():
+        save_top(tables / "top" / who / f"{year}.json", data)
+
+
+def write_top(tables: Path, date: dt.date) -> None:
+    """After a table is written: the summaries of its year, if that year is complete, and of
+    last year, once it has become complete (on the first table of a new year)."""
+    last = dt.datetime.now(EASTERN).year - 1
+    for year in {date.year, last}:
+        stale = year == date.year or not any((tables / "top").glob(f"*/{year}.json"))
+        if stale and year_complete(tables, year):
+            write_year_top(tables, year)
+            TOP_WRITTEN.append(year)
+
+
+def rebuild_top(tables: Path) -> int:
+    """All top-paper summaries from the tables present: one file per participant and
+    complete year. Returns the number of complete years."""
+    import shutil
+    shutil.rmtree(tables / "top", ignore_errors=True)
+    years = sorted({int(d[:4]) for d in index_dates(tables)})
+    done = [y for y in years if year_complete(tables, y)]
+    for year in done:
+        write_year_top(tables, year)
+    return len(done)
 
 
 def write_empty_list(tables: Path) -> None:
@@ -1540,6 +1644,9 @@ def write_commit_message(args, date, cfg, via, columns, n_papers, n_skipped, n_m
         lines.append(note)
     if n_meta:
         lines.append(f"Metadata fallback: {n_meta} papers DataCite lacks, in {date.isoformat()}.meta.json")
+    if TOP_WRITTEN:
+        lines.append(f"Top-paper summaries written for {', '.join(map(str, sorted(set(TOP_WRITTEN))))}, "
+                     "now complete (tables/top/)")
     path = args.work / "commit-message.txt"
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text("\n".join(lines) + "\n", encoding="utf-8")
@@ -1557,6 +1664,8 @@ def main() -> int:
                     help="score a past date as a daily run: every participant scored daily, "
                          "status no-legacy included (default for past dates: the legacy survey, "
                          "status active only)")
+    ap.add_argument("--rebuild-top", action="store_true",
+                    help="rebuild the top-paper summaries of complete years (tables/top/) from the tables present, without scoring")
     ap.add_argument("--meta-only", action="store_true",
                     help="write a date's metadata fallback (papers DataCite lacks) from its table, without scoring")
     ap.add_argument("--via", choices=["api", "claude-code"],
@@ -1570,6 +1679,9 @@ def main() -> int:
     ap.add_argument("--config", type=Path, default=ROOT / "config-log.json")
     args = ap.parse_args()
     load_env(ROOT / ".env")
+    if args.rebuild_top:
+        print(f"Top-paper summaries rebuilt for {rebuild_top(args.tables)} complete years in {args.tables / 'top'}")
+        return 0
     if (args.model or args.effort) and not args.test:
         ap.error("--model and --effort are only for trials with --test; "
                  "real runs follow the configuration log")

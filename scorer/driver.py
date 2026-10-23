@@ -7,7 +7,8 @@
     mh --stop         stop the driver once the listing it is scoring is done, or at once if it is
                       sleeping or waiting for review; unpushed commits wait for mh -p
 
-Each weekday from MORNING (Eastern time) it runs `mh -l` until the day's listing
+It pushes nothing on Saturdays and Sundays (Eastern time; local_run.py checks MAPHUB_UNATTENDED,
+which it sets). Each weekday from MORNING (Eastern time) it runs `mh -l` until the day's listing
 has a table: a usage limit or a busy arXiv only delays it. The new table is then
 pushed, at once when REVIEW is 0 (the prototype's setting); otherwise it waits REVIEW for
 the maintainer, `mh -p` pushing it at once and `mh --hold` keeping it waiting. The rest of
@@ -16,7 +17,7 @@ reset time Claude Code reports (a few minutes after; FALLBACK if none is given),
 longer than WAKE, so that a seat switched meanwhile is used.
 Listings missed while a weekly limit lasts are gaps that `mh -bb` fills first once
 it resets. Code pushed from another computer is picked up on its own: every run pulls
-and merges main first (restarting with new scorer code before it scores), and when the scorer's code
+and merges main first (on weekends, Monday morning's run) (restarting with new scorer code before it scores), and when the scorer's code
 has changed the driver restarts itself between runs. When the morning comes during a
 backfill, the backfill stops after the listing it is scoring. The driver logs to
 .cache/driver/driver-<date>.log, one file a day, all kept (a run's output stays in the
@@ -88,7 +89,8 @@ def run(*args: str, watch_morning: bool = False) -> tuple[int, str]:
     log(f"$ mh {' '.join(args)}")
     with open(log_path(), "a", encoding="utf-8") as out:
         proc = subprocess.Popen([*RUNNER, *args], stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
-                                stdin=subprocess.DEVNULL, text=True, bufsize=1)
+                                stdin=subprocess.DEVNULL, text=True, bufsize=1,
+                                env={**os.environ, "MAPHUB_UNATTENDED": "1"})  # no pushes on weekends (local_run.py)
         lines = []
         for line in proc.stdout:
             out.write(line)
@@ -140,6 +142,15 @@ def listing_done(day: dt.date) -> bool:
 def morning_due() -> bool:
     t = now()
     return t.weekday() < 5 and t.time() >= MORNING and not listing_done(t.date())
+
+
+def next_morning() -> dt.datetime:
+    """The next weekday's MORNING (Eastern time)."""
+    t = now()
+    day = t.date() + dt.timedelta(days=1)
+    while day.weekday() >= 5:
+        day += dt.timedelta(days=1)
+    return dt.datetime.combine(day, MORNING, tzinfo=t.tzinfo)
 
 
 def sleep_until(when: dt.datetime, doing: str) -> None:
@@ -247,6 +258,9 @@ def drive() -> int:
             status("backfilling (mh -bb)")
             code, output = run("-bb", watch_morning=True)
             if morning_due():
+                continue
+            if code == 3:  # the legacy survey is complete: only the morning listings are left
+                sleep_until(next_morning(), "legacy survey complete; waiting for the next morning listing")
                 continue
             after_stop(code, output, "backfilling")
     except KeyboardInterrupt:

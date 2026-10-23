@@ -32,6 +32,7 @@ from __future__ import annotations
 
 import argparse
 import datetime as dt
+import json
 import os
 import re
 import shutil
@@ -48,11 +49,23 @@ PORTFOLIOS = ROOT / "maphub-portfolios"
 WORK = ROOT / ".work"
 VIA = "claude-code"  # how the scorer sends requests (--via)
 CODE = "main"  # the branch the code is developed on; the host runs on a branch of tables merged from it
+COMPLETE = "Legacy survey complete:"  # the subject of the commit that records the survey's start
 SUBJECT = re.compile(r"^Table for (\d{4}-\d{2}-\d{2}) \(via ([\w-]+)\)$")
+
+
+def quiet_weekend() -> bool:
+    """An unattended run (started by the driver, which sets MAPHUB_UNATTENDED) on a Saturday or
+    Sunday, Eastern time: it pushes nothing, neither tables nor a merge of new code, which wait
+    for Monday morning's run. A push started by hand (mh -p) goes out on any day."""
+    return bool(os.environ.get("MAPHUB_UNATTENDED")) and dt.datetime.now(dtab.EASTERN).weekday() >= 5
 
 
 class RunError(Exception):
     pass
+
+
+class SurveyComplete(RunError):
+    """The legacy survey reached the first listing of the surveyed categories."""
 
 
 class Incomplete(RunError):
@@ -69,7 +82,7 @@ def git(repo: Path, *args: str, check: bool = True, env: dict | None = None) -> 
 
 
 def rebuild_index() -> None:
-    """tables/index.json from the Parquet files present: settles a conflict between
+    """tables/index.json, empty.json and the top-paper summaries (top/) from the Parquet files present: settles a conflict between
     a pending backfill and a table pushed meanwhile from another computer."""
     (TABLES / "index.json").write_text("{}\n", encoding="utf-8")
     dates: dict[dt.date, list[str]] = {}
@@ -78,6 +91,7 @@ def rebuild_index() -> None:
     for date, yymms in sorted(dates.items()):
         dtab.write_index(TABLES, date, sorted(yymms))
     dtab.write_empty_list(TABLES)
+    dtab.rebuild_top(TABLES)
 
 
 def sync() -> None:
@@ -93,11 +107,11 @@ def sync() -> None:
         raise RunError(f"git pull: {pulled.stderr.strip()}")
     while rebasing():
         conflicts = git(ROOT, "diff", "--name-only", "--diff-filter=U").split()
-        if not conflicts or not set(conflicts) <= {"tables/index.json", "tables/empty.json"}:
+        if not conflicts or not all(c in ("tables/index.json", "tables/empty.json") or c.startswith("tables/top/") for c in conflicts):
             git(ROOT, "rebase", "--abort", check=False)
             raise RunError(f"pull conflicts in {', '.join(conflicts) or 'unknown files'}; resolve by hand")
         rebuild_index()
-        git(ROOT, "add", "tables/index.json", "tables/empty.json")
+        git(ROOT, "add", "-A", "-f", "tables/index.json", "tables/empty.json", "tables/top")
         git(ROOT, "rebase", "--continue", env={"GIT_EDITOR": "true"}, check=False)
     merge_code()
     # A pull that brought new scorer code restarts this run, so that the run uses it throughout
@@ -116,6 +130,9 @@ def merge_code() -> None:
         raise RunError(f"this is {CODE}, which leaves tables/ out; run on the tables branch "
                        "(`git switch tables`, or `git switch -c tables` in a new copy: RUNNING.md, Setting up a copy, step 1)")
     if branch in ("", CODE):  # on main in a MapHub that keeps its tables there, or detached
+        return
+    if quiet_weekend():
+        print("Weekend: new code from main, if any, is merged on Monday morning's run.", flush=True)
         return
     git(ROOT, "fetch", "-q", "origin", CODE)
     if subprocess.run(["git", "-C", str(ROOT), "merge-base", "--is-ancestor", f"origin/{CODE}", "@{upstream}"]).returncode == 0:
@@ -221,6 +238,13 @@ def combined(messages: list[str]) -> str:
     scorer's message."""
     if len(messages) == 1:
         return messages[0] + "\n"
+    # The commit recording the survey's end travels with the tables, as lines of its own.
+    ends = [m for m in messages if m.startswith(COMPLETE)]
+    messages = [m for m in messages if not m.startswith(COMPLETE)]
+    if ends and not messages:
+        return "\n\n".join(ends) + "\n"
+    if ends:
+        return combined(messages).rstrip("\n") + "\n\n" + "\n\n".join(ends) + "\n"
     heads = [SUBJECT.match(m.splitlines()[0]) for m in messages]
     if not all(heads):
         raise RunError("an unpushed commit is not a table commit; push or fold it by hand")
@@ -270,6 +294,9 @@ def publish(confirm: bool) -> None:
     messages = pending()
     if not messages:
         print("Nothing to push.")
+        return
+    if quiet_weekend():
+        print(f"Weekend: {len(messages)} commit(s) wait for Monday morning's push.")
         return
     message = combined(messages)
     print("--- commit message ---\n" + message + "----------------------")
@@ -337,7 +364,38 @@ def back_date() -> dt.date:
     day = dates[0] - dt.timedelta(days=1)
     while day.weekday() >= 5:  # no listings on weekends
         day -= dt.timedelta(days=1)
+    start = dtab.survey_start(TABLES)
+    if start and day < start:
+        raise SurveyComplete(f"the legacy survey is complete: it reached the first listing of the surveyed categories, {start}")
+    if (day.year, day.month) != (dates[0].year, dates[0].month) and not categories_begun(day):
+        (TABLES / "survey.json").write_text(json.dumps({"start": dates[0].isoformat()}) + "\n", encoding="utf-8")
+        dtab.write_top(TABLES, dates[0])  # the first year is now complete, if every weekday since has a table
+        lines = [f"{COMPLETE} the surveyed categories begin with the listing of {dates[0]}"]
+        if dtab.TOP_WRITTEN:
+            lines += ["", f"Top-paper summaries written for {dates[0].year}, now complete (tables/top/)"]
+        git(ROOT, "add", "-A", "-f", "tables/survey.json", "tables/top")
+        git(ROOT, "commit", "-q", "-m", "\n".join(lines))
+        raise SurveyComplete(f"the legacy survey is complete: the surveyed categories begin with the listing of {dates[0]}")
     return day
+
+
+SILENT_MONTHS = 12  # months without a paper in any surveyed listing that mark their beginning
+
+
+def categories_begun(day: dt.date) -> bool:
+    """Whether the surveyed listings had begun by the month of `day`, from arXiv's monthly
+    listing pages (one request per listing): yes as soon as one shows a paper in that month or
+    in the SILENT_MONTHS - 1 before it, or when a page cannot be read (never end the survey
+    on a failure); no only when every listing shows none in all of them."""
+    listings = dtab.load_config(ROOT / "config-log.json", dt.datetime.now(dtab.EASTERN).date())["listings"]
+    month = day.replace(day=1)
+    for _ in range(SILENT_MONTHS):
+        for listing in listings:
+            total = dtab.listing_month_total(listing, month)
+            if total is None or total > 0:
+                return True
+        month = (month - dt.timedelta(days=1)).replace(day=1)
+    return False
 
 
 def main() -> int:
@@ -402,6 +460,9 @@ def main() -> int:
         elif args.push:
             publish(confirm)
         return 0
+    except SurveyComplete as e:
+        print(f"{e}; nothing is left to backfill.")
+        return 3  # the driver then waits for the morning listings
     except Incomplete as e:
         print(f"Stopped: {e}.")
         if args.back:

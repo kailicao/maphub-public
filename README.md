@@ -12,19 +12,19 @@ Every MapHub works the same way. Its code, daily tables and viewer are public, a
 - builds each profile from a portfolio the participant writes and corrects, in a common format, rather than learning it from clicks;
 - publishes its scores, labeled as AI-generated, with each table's commit recording the portfolio version, configuration and code that produced it (the portfolios themselves stay among participants).
 
-In the prototype's tables scored with the current portfolios (70 listings, May 29 to Sep 1 and Oct 15–16, 2026, most of them backfilled), about 6% of a day's new astro-ph papers score 30 or more for each participant, on average: a handful worth reading out of some ninety. For a department, the heatmap can also seed a daily journal club like the astro-ph coffee discussions held in many astronomy departments, across subfields rather than one topic: papers that touch several columns make natural topics, and the participants they score highest for are natural people to invite to lead the discussion, if they wish. Scores come without explanations; each morning's table appears in the viewer after arXiv's 20:00 ET announcement is scored. To run a MapHub of your own, see [Run your own MapHub](#run-your-own-maphub).
+In a sample of 70 listings (May 29 to Sep 1 and Oct 15–16, 2026, most of them backfilled) scored with the current portfolios used by this prototype, about 6% of a day's new astro-ph papers score 30 or more for each participant, on average: a handful worth reading out of some ninety. For a department, the heatmap can also seed a daily journal club like the astro-ph coffee discussions held in many astronomy departments, across subfields rather than one topic: papers that touch several columns make natural topics, and the participants they score highest for are natural people to invite to lead the discussion, if they wish. There are no explanations for individual scores; how the scores are made is in the viewer's About MapHub and in the [Scoring rubric](#scoring-rubric) below. Each morning's table appears in the viewer after arXiv's 20:00 ET announcement is scored. To run a MapHub of your own, see [Run your own MapHub](#run-your-own-maphub).
 
-**This repository is the prototype.** It is run by [Kaili Cao](https://kailicao.github.io/), its maintainer, and follows astrophysics (astro-ph) and artificial intelligence (cs.AI) (DEVELOPMENT.md, Listings). Its daily scoring began with the listing of Oct 7, 2026, for five participants, and it is under development; the viewer shows its current participants (the columns) and the days scored so far (the calendar). MapHub, and this prototype, were developed as a team project (a "carpentry") of the [Eric and Wendy Schmidt AI in Science Postdoctoral Fellowship](https://midas.umich.edu/training/postdoctoral-programs/schmidt-ai-in-science-postdoctoral-fellowship/) at the Michigan Institute for Data and AI in Society (MIDAS), led by Kaili Cao with teammates Kyle Heyblom, Eva Albalghiti and Dimitrios Simatos; it grew out of Kaili Cao's own literature workflow and extends it from one person to a community. To join the prototype, read What participants agree to (below) and email kailicao@umich.edu.
+**This repository is the prototype.** It is run by [Kaili Cao](https://kailicao.github.io/), its maintainer, and follows astrophysics (astro-ph) and artificial intelligence (cs.AI) (customizable; see [DEVELOPMENT.md, Listings](DEVELOPMENT.md#overview)). Its daily scoring began with the listing of Oct 7, 2026, for five participants, and it is under development; the viewer shows its current participants (the columns) and the days scored so far (the calendar). MapHub, and this prototype, were developed as a team project (a "carpentry") of the [Eric and Wendy Schmidt AI in Science Postdoctoral Fellowship](https://midas.umich.edu/training/postdoctoral-programs/schmidt-ai-in-science-postdoctoral-fellowship/) at the Michigan Institute for Data and AI in Society (MIDAS), led by Kaili Cao with teammates Kyle Heyblom, Eva Albalghiti and Dimitrios Simatos; it grew out of Kaili Cao's own literature workflow and extends it from one person to a community. To join the prototype, read [What participants agree to](#what-participants-agree-to) (below) and email kailicao@umich.edu.
 
 This README is for first readers: how to run a MapHub of your own, what participants agree to, how to write a portfolio and how to read the results. The portfolio-drafting prompt and the repository's layout follow below a marked line, and three documents go deeper: [RUNNING.md](RUNNING.md) (setting up and running a MapHub), [RESULTS.md](RESULTS.md) (the tables, the back catalogs and the viewer) and [DEVELOPMENT.md](DEVELOPMENT.md) (how MapHub works and why, and where it is going).
 
 ## Run your own MapHub
 
-MapHub is meant to be copied: a high-energy physics department, say, can run one for hep-ph and hep-th without joining the prototype. Adapt anything you need, from the listings and the page to the code: the code and documents are under the MIT License, which lets you use, change and share them as long as the copyright and license notice stay with them, and the tables under CC BY 4.0 (License, below). The scoring code is general; the settings, the page's wording and colors, the user agent and the examples in `CLAUDE.md` are the prototype's own.
+MapHub is meant to be copied: a high-energy physics department, say, can run one for hep-ph and hep-th without joining the prototype. Adapt anything you need, from the listings and the page to the code: the code and documents are under the MIT License, which lets you use, change and share them as long as the copyright and license notice stay with them, and the tables under CC BY 4.0 ([License](#license), below). The scoring code is general; the settings, the page's wording and colors, the user agent and the examples in `CLAUDE.md` are the prototype's own.
 
 **The name.** MapHub, the MIDAS arXiv Preprint Hub, names the prototype and the copies run within MIDAS, for example by members of the carpentry team for their own disciplines. A copy elsewhere may take whatever name suits it; we would appreciate a note of where it comes from, such as a line in its README and on its page linking to this repository.
 
-In short (the details are in [RUNNING.md](RUNNING.md), Setting up a copy):
+In short (the details are in [RUNNING.md, Setting up a copy](RUNNING.md#setting-up-a-copy)):
 
 1. **Make your copy** of this repository ("Use this template": its main branch holds the code alone), with a tables branch for your tables.
 2. **Choose the listings** in `config-log.json`.
@@ -44,9 +44,9 @@ Questions are welcome: kailicao@umich.edu.
 
 ## Writing a portfolio
 
-A portfolio is the only thing a MapHub knows about a participant: every score comes from it. It works for any subject, a researcher, a group or a collaboration, in any field. The examples come from astronomy, where papers are also identified by NASA ADS bibcodes; other fields use their own identifiers, such as INSPIRE-HEP records, or DOIs. A first portfolio can be drafted from a publication record with the portfolio-drafting prompt (below the line).
+A portfolio is the only thing a MapHub knows about a participant: every score comes from it. It works for any subject, a researcher, a group or a collaboration, in any field. The examples come from astronomy, where papers are also identified by NASA ADS bibcodes; other fields use their own identifiers, such as INSPIRE-HEP records, or DOIs. A first portfolio can be drafted from a publication record with the [portfolio-drafting prompt](#the-portfolio-drafting-prompt) (below the line).
 
-The portfolio is built from papers, never from stated interests:
+If you use this prompt:
 
 - **Bottom-up from papers.** Topics come from the papers the subject has, starting with their own. No topic is decided in advance.
 - **Interests enter only through reading; plans are welcome.** A topic the subject hasn't published on appears only once their reading on it builds up. Interest without reading doesn't count. The subject's own plans do belong in the portfolio, in each topic's Next line or as a topic of their own (Basis: plans): portfolios are used to find papers of interest, and papers on planned work are among them. To improve a column's scores, add the papers the subject has read on a topic, and their plans: a portfolio drawn from a publication record shows what was published, not everything the subject follows.
@@ -90,7 +90,7 @@ The portfolio must stand on its own: it contains no scores, and everything in it
 - By default, papers are ranked by their average score over the participants shown, and participants by the rank correlation (ρ) of their scores with the average of the others'. Select a participant (column name) to sort papers by relevance to them and participants by similarity to them. Select a paper (title) to sort papers by similarity to it and participants by its relevance to them. Similarity is the correlation (r) of that day's scores.
 - **Top papers** (`<base>/top`) lists one participant's highest-scored papers over a range of listing dates (by default the past calendar month up to the latest table, top 50); other participants can be shown beside, with their scores for the same papers, and each listing date opens that day's heatmap. Its URL keeps the choice, as in `<base>/top#p=<pseudonym>&also=<others>&from=2026-09-12&to=2026-10-12&n=50`. Selecting a participant in the heatmap offers a link to their top papers up to that day.
 - Hover over an arXiv ID for its URL, or over a cell for its score. The selection is kept in the URL, so a view can be shared. Columns carry pseudonyms rather than names.
-- The tables behind the viewer are public Parquet files, which you can download and analyze with your own tools ([RESULTS.md](RESULTS.md), Using the tables).
+- The tables behind the viewer are public Parquet files, which you can download and analyze with your own tools ([RESULTS.md, Using the tables](RESULTS.md#using-the-tables)).
 
 ### Scoring rubric
 
@@ -102,9 +102,9 @@ Each paper is scored from its title, authors and abstract against a participant'
 | 80 | The subject coauthored it, or would coauthor it if it didn't exist |
 | 60 | The subject has cited it, or probably will at some point |
 | 30 | The subject probably won't cite it, but it may broaden their view |
-| 0 | Worth a glance at the title, but reading the abstract would waste the subject's time |
+| 0 | Worth a glance at the title, but reading the abstract is probably not worth their time |
 
-The anchors guide the model; they are not calibrated probabilities, so scores rank papers within a column and a day best. Most papers score low for most participants: in the 70 listings scored with the current portfolios (May 29–Sep 1 and Oct 15–16, 2026), 97% of the scores are below 30, and 0.2% of all scores are 60 or above. In a blind rating study (one rater so far; DEVELOPMENT.md, Measurements), reading a listing in score order found about four in five of the rater's top 5% of papers within its top tenth, against about one in three with a word-matching baseline. A research note on MapHub and this study is in preparation. Low scores come from the first pass, against the outline, and are coarse; scores that matter come from the full portfolio. Scores are AI-generated and can be wrong: they are pointers to papers and people, not judgments of anyone's work.
+The anchors guide the model; they are not calibrated probabilities, so scores rank papers within a column and a day best. Most papers score low for most participants: in the same sample of 70 listings (May 29–Sep 1 and Oct 15–16, 2026), 97% of the scores are below 30, and 0.2% of all scores are 60 or above. In a blind rating study (one rater so far; [DEVELOPMENT.md, Measurements](DEVELOPMENT.md#measurements)), reading a listing in score order found about four in five of the rater's top 5% of papers within its top tenth, against about one in three with a word-matching baseline. A research note on MapHub and this study is in preparation. Low scores come from the first pass, against the outline, and are coarse; scores that matter come from the full portfolio. Scores are AI-generated and can be wrong: they are pointers to papers and people, not judgments of anyone's work.
 
 ### Terms
 
@@ -117,7 +117,7 @@ The anchors guide the model; they are not calibrated probabilities, so scores ra
 
 ---
 
-**In depth.** The sections below are for participants drafting a portfolio and for anyone who wants the details. This is version 0.9 (DEVELOPMENT.md, Versions). [RUNNING.md](RUNNING.md) covers setting up a copy, participants and portfolios, the repositories, the runs and the configuration log, running unattended, and the stages; [RESULTS.md](RESULTS.md) the tables, their format, the back catalogs and the viewer; [DEVELOPMENT.md](DEVELOPMENT.md) how the scoring works and why: the daily table, the prompts, the measurements and budget behind its choices, versions, plans and open questions.
+**In depth.** The sections below are for participants drafting a portfolio and for anyone who wants the details. This is version 0.9 ([DEVELOPMENT.md, Versions](DEVELOPMENT.md#versions)). [RUNNING.md](RUNNING.md) covers setting up a copy, participants and portfolios, the repositories, the runs and the configuration log, running unattended, and the stages; [RESULTS.md](RESULTS.md) the tables, their format, the back catalogs and the viewer; [DEVELOPMENT.md](DEVELOPMENT.md) how the scoring works and why: the daily table, the prompts, the measurements and budget behind its choices, extension directions, parameters to tune and versions.
 
 ## The portfolio-drafting prompt
 
@@ -164,7 +164,7 @@ Then talk the draft through with me. Ask, one question at a time, about (a) pape
 | --- | --- |
 | `RUNNING.md` | setting up and running a MapHub: a copy step by step, participants and portfolios, repositories, runs and the configuration log, running unattended, stages |
 | `RESULTS.md` | what a MapHub produces: using the tables, their format, the back catalogs (legacy survey), the web viewer |
-| `DEVELOPMENT.md` | how MapHub works and why: the daily table, the prompts, the measurements and budget, versions, plans and open questions |
+| `DEVELOPMENT.md` | how MapHub works and why: the daily table, the prompts, the measurements and budget, extension directions, parameters to tune, versions |
 | `CLAUDE.md` | the operations file for an AI assistant: setting up the host computer and running MapHub day to day |
 | `config-log.json` | every scoring configuration, with the date it took effect |
 | `scorer/` | `daily_table.py`, which fetches a day's papers, scores them with Claude (through Claude Code or the API) and writes the tables; `local_run.py`, the daily routine around it (`mh`); `driver.py`, which runs that routine unattended (`mh -d`) |

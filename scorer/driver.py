@@ -12,13 +12,15 @@ which it sets). Each weekday from MORNING (Eastern time) it runs `mh -l` until t
 has a table: a usage limit or a busy arXiv only delays it. The new table is then
 pushed, at once when REVIEW is 0 (the prototype's setting); otherwise it waits REVIEW for
 the maintainer, `mh -p` pushing it at once and `mh --hold` keeping it waiting. The rest of
-the time it runs `mh -bb`, backfilling until the usage limit stops it, and sleeps until the
-reset time Claude Code reports (a few minutes after; FALLBACK if none is given), but never
-longer than WAKE, so that a seat switched meanwhile is used.
+the time it runs `mh -bb`, backfilling until the usage limit stops it, and sleeps: until the
+middle of the 5-hour session if that is still ahead, so that a seat switched meanwhile is
+used, otherwise until a few minutes after the reset time Claude Code reports; while a weekly
+limit lasts, or when no reset time is given, no sleep is longer than WAKE.
 Listings missed while a weekly limit lasts are gaps that `mh -bb` fills first once
 it resets. Code pushed from another computer is picked up on its own: every run pulls
-and merges main first (on weekends, Monday morning's run) (restarting with new scorer code before it scores), and when the scorer's code
-has changed the driver restarts itself between runs. When the morning comes during a
+and merges main first (on weekends, Monday morning's run, restarting with new scorer code
+before it scores), and when the scorer's code has changed the driver restarts itself between
+runs. When the morning comes during a
 backfill, the backfill stops after the listing it is scoring. The driver logs to
 .cache/driver/driver-<date>.log, one file a day, all kept (a run's output stays in the
 file of the day it started).
@@ -47,8 +49,9 @@ MORNING = dt.time(2, 0)  # Eastern time; arXiv announces at 20:00 the evening be
                          # scored from 02:00 is in the viewer by about 07:00 even after a usage-limit wait
 REVIEW = dt.timedelta(0)  # how long a new listing waits for the maintainer before the driver pushes it
                           # (0: at once, as in the prototype since Oct 21, 2026)
-WAKE = dt.timedelta(hours=2.5)  # the longest sleep: at least twice in five hours the driver tries again,
-                                # so a seat switched during a usage-limit sleep is used
+SESSION = dt.timedelta(hours=5)  # Claude Code's session; a usage-limit sleep wakes in its middle, if still ahead
+WAKE = dt.timedelta(hours=2.5)  # the longest sleep: while a weekly limit lasts, the driver tries again this often,
+                                # so a seat switched meanwhile is used
 FALLBACK = dt.timedelta(hours=5)  # sleep after a stop when no reset time is given
 RETRY = dt.timedelta(minutes=30)  # sleep after a failure that is not a usage limit
 MARGIN = dt.timedelta(minutes=3)  # after a reported reset time
@@ -153,10 +156,23 @@ def next_morning() -> dt.datetime:
     return dt.datetime.combine(day, MORNING, tzinfo=t.tzinfo)
 
 
-def sleep_until(when: dt.datetime, doing: str) -> None:
-    """Sleep until `when`, but no longer than WAKE, waking early for a stop request or the
-    morning listing."""
-    when = min(when, now() + WAKE)
+def wake_time(reset: dt.datetime) -> dt.datetime:
+    """When to wake after a usage limit that resets at `reset`: the middle of the 5-hour
+    session (reset − SESSION/2) if it is still ahead, so that a seat switched meanwhile is used;
+    otherwise the reset (MARGIN after). A reset more than a session away (the weekly limit)
+    gives a try every WAKE."""
+    t = now()
+    if reset - t > SESSION:
+        return t + WAKE
+    middle = reset - SESSION / 2
+    return middle if middle > t + MARGIN else reset + MARGIN
+
+
+def sleep_until(when: dt.datetime, doing: str, cap: bool = True) -> None:
+    """Sleep until `when`, but no longer than WAKE unless cap is False (a wake_time, which
+    caps itself), waking early for a stop request or the morning listing."""
+    if cap:
+        when = min(when, now() + WAKE)
     status(doing, when)
     log(f"{doing} until {when:%a %Y-%m-%d %H:%M} ET")
     was_due = morning_due()
@@ -203,7 +219,7 @@ def after_stop(code: int, output: str, what: str, retry: bool = False) -> None:
         return
     reset = reset_time(output)
     if reset:
-        sleep_until(reset + MARGIN, f"usage limit reached during {what}; sleeping")
+        sleep_until(wake_time(reset), f"usage limit reached during {what}; sleeping", cap=False)
     elif code != 0 or retry:
         sleep_until(now() + RETRY, f"{what} not finished (exit {code}); retrying later")
     else:

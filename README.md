@@ -12,33 +12,39 @@ Every MapHub works the same way. Its code, daily tables and viewer are public, a
 - builds each profile from a portfolio the participant writes and corrects, in a common format, rather than learning it from clicks;
 - publishes its scores, labeled as AI-generated, with each table's commit recording the portfolio version, configuration and code that produced it (the portfolios themselves stay among participants).
 
-In a sample of 70 listings (May 29 to Sep 1 and Oct 15–16, 2026, most of them backfilled) scored with the current portfolios used by this prototype, about 6% of a day's new astro-ph papers score 30 or more for each participant, on average: a handful worth reading out of some ninety. For a department, the heatmap can also seed a daily journal club like the astro-ph coffee discussions held in many astronomy departments, across subfields rather than one topic: papers that touch several columns make natural topics, and the participants they score highest for are natural people to invite to lead the discussion, if they wish. There are no explanations for individual scores; how the scores are made is in the viewer's About MapHub and in the [Scoring rubric](#scoring-rubric) below. Each morning's table appears in the viewer after arXiv's 20:00 ET announcement is scored. To run a MapHub of your own, see [Run your own MapHub](#run-your-own-maphub).
+In a sample of 70 listings (May 29 to Sep 1 and Oct 15–16, 2026, most of them backfilled) scored with the current portfolios used by this prototype, about 6% of a day's new astro-ph papers score 30 or more for each participant, on average: a handful worth reading out of some ninety. For a department, the heatmap can also seed a daily journal club like the astro-ph coffee discussions held in many astronomy departments, across subfields rather than one topic: papers that touch several columns make natural topics, and the participants they score highest for are natural people to invite to lead the discussion, if they wish.
 
 **This repository is the prototype.** It is run by [Kaili Cao](https://kailicao.github.io/), its maintainer, and follows astrophysics (astro-ph) and artificial intelligence (cs.AI) (customizable; see [DEVELOPMENT.md, Listings](DEVELOPMENT.md#overview)). Its daily scoring began with the listing of Oct 7, 2026, for five participants, and it is under development; the viewer shows its current participants (the columns) and the days scored so far (the calendar). MapHub, and this prototype, were developed as a team project (a "carpentry") of the [Eric and Wendy Schmidt AI in Science Postdoctoral Fellowship](https://midas.umich.edu/training/postdoctoral-programs/schmidt-ai-in-science-postdoctoral-fellowship/) at the Michigan Institute for Data and AI in Society (MIDAS), led by Kaili Cao with teammates Kyle Heyblom, Eva Albalghiti and Dimitrios Simatos; it grew out of Kaili Cao's own literature workflow and extends it from one person to a community. To join the prototype, read [What participants agree to](#what-participants-agree-to) (below) and email kailicao@umich.edu.
 
-This README is for first readers: how to run a MapHub of your own, what participants agree to, how to write a portfolio and how to read the results. The portfolio-drafting prompt and the repository's layout follow below a marked line, and three documents go deeper: [RUNNING.md](RUNNING.md) (setting up and running a MapHub), [RESULTS.md](RESULTS.md) (the tables, the back catalogs and the viewer) and [DEVELOPMENT.md](DEVELOPMENT.md) (how MapHub works and why, and where it is going).
+This README is for first readers: how to read the results, what participants agree to, how to write a portfolio and how to run a MapHub of your own. The portfolio-drafting prompt and the repository's layout follow below a marked line, and three documents go deeper: [RUNNING.md](RUNNING.md) (setting up and running a MapHub), [RESULTS.md](RESULTS.md) (the tables, the back catalogs and the viewer) and [DEVELOPMENT.md](DEVELOPMENT.md) (how MapHub works and why, and where it is going).
 
-## Run your own MapHub
+## Understanding the results
 
-MapHub is meant to be copied: a high-energy physics department, say, can run one for hep-ph and hep-th without joining the prototype. Adapt anything you need, from the listings and the page to the code: the code and documents are under the MIT License, which lets you use, change and share them as long as the copyright and license notice stay with them, and the tables under CC BY 4.0 ([License](#license), below). The scoring code is general; the settings, the page's wording and colors, the user agent and the examples in `CLAUDE.md` are the prototype's own.
+### The viewer
 
-**The name.** MapHub, the MIDAS arXiv Preprint Hub, names the prototype and the copies run within MIDAS, for example by members of the carpentry team for their own disciplines. A copy elsewhere may take whatever name suits it; we would appreciate a note of where it comes from, such as a line in its README and on its page linking to this repository.
+- The base URL shows the latest day with an announcement; each day also has its own URL, such as `https://kailicao.github.io/maphub-public/2026-10-06`. Weekends have no arXiv listing and no table, and a day without an announcement (an arXiv holiday) is marked in the calendar (sand-colored in the prototype). The arrows, the date box and the calendar move between days and keep a selected participant.
+- By default, papers are ranked by their average score over the participants shown, and participants by the rank correlation (ρ) of their scores with the average of the others'. Select a participant (column name) to sort papers by relevance to them and participants by similarity to them. Select a paper (title) to sort papers by similarity to it and participants by its relevance to them. Similarity is the correlation (r) of that day's scores.
+- **Top papers** (`<base>/top`) lists one participant's highest-scored papers over a range of listing dates (by default the past calendar month up to the latest table, top 50); other participants can be shown beside, with their scores for the same papers, and each listing date opens that day's heatmap. Its URL keeps the choice, as in `<base>/top#p=<pseudonym>&also=<others>&from=2026-09-12&to=2026-10-12&n=50`. Selecting a participant in the heatmap offers a link to their top papers up to that day.
+- Hover over an arXiv ID for its URL, or over a cell for its score. The selection is kept in the URL, so a view can be shared. Columns carry pseudonyms rather than names.
+- The tables behind the viewer are public Parquet files, which you can download and analyze with your own tools ([RESULTS.md, Using the tables](RESULTS.md#using-the-tables)).
 
-In short (the details are in [RUNNING.md, Setting up a copy](RUNNING.md#setting-up-a-copy)):
+### Scoring rubric
 
-1. **Make your copy** of this repository ("Use this template": its main branch holds the code alone), with a tables branch for your tables.
-2. **Choose the listings** in `config-log.json`.
-3. **Set up the portfolios** from `portfolios-template/`: a private repository of their own, or, if your participants agree to public portfolios, a folder of your copy.
-4. **Make the page yours:** the viewer's wording, colors and icons, this README and `CLAUDE.md`.
-5. **Publish** the viewer on GitHub Pages.
-6. **Run it** each morning after arXiv's 20:00 ET announcement, from one host computer, through Claude Code on a Claude subscription whose terms allow this use, or through the Claude API. `CLAUDE.md` sets up the host computer. Once it works, `mh -d` can run the routine unattended on a computer that never sleeps.
-7. **Optionally, go back in time,** building a back catalog of earlier listings.
+Each paper is scored from its title, authors and abstract against a participant's portfolio, by a language model (Claude), on this scale. Intermediate values are allowed.
 
-Questions are welcome: kailicao@umich.edu.
+| Score | Meaning |
+| --- | --- |
+| 100 | The subject wrote it, or would write it if it didn't exist |
+| 80 | The subject coauthored it, or would coauthor it if it didn't exist |
+| 60 | The subject has cited it, or probably will at some point |
+| 30 | The subject probably won't cite it, but it may broaden their view |
+| 0 | Worth a glance at the title, but reading the abstract is probably not worth their time |
+
+The anchors guide the model; they are not calibrated probabilities, so scores rank papers within a column and a day best. Most papers score low for most participants: in the same sample of 70 listings (May 29–Sep 1 and Oct 15–16, 2026), 97% of all scores, cs.AI included, are below 30, and 0.2% of all scores are 60 or above. In a blind rating study (one rater so far; [DEVELOPMENT.md, Measurements](DEVELOPMENT.md#stability-and-quality)), reading a listing in score order found about four in five of the rater's top 5% of papers within its top tenth, against about one in three with a word-matching baseline. A research note on MapHub and this study is in preparation. Low scores come from the first pass, against the outline, and are coarse; scores that matter come from the full portfolio. There are no explanations for individual scores. Scores are AI-generated and can be wrong: they are pointers to papers and people, not judgments of anyone's work.
 
 ## What participants agree to
 
-- **Public scores.** Every score is public, in the tables and the viewer, and stays public: after a participant pauses or leaves, their column can be greyed out or hidden in the viewer, but the tables, and their git history, keep it.
+- **Public scores.** Every score is public, in the tables and the viewer, and stays public: after a participant pauses or leaves, their column can be grayed out or hidden in the viewer, but the tables, and their git history, keep it.
 - **Pseudonyms are not anonymity.** Pseudonyms keep names off the page, but a participant's own papers score near 100, so a column can be linked to the person or group behind it. Join only if you are comfortable with your relevance scores being public.
 - **Portfolios.** A portfolio is visible to every participant, and is sent with every scoring request to Anthropic, the provider of the language model (Claude), under the terms of the account used. Put nothing in it that you would not share that way.
 
@@ -82,31 +88,25 @@ The lengths are guides. The Summary may run longer, with short bullet lists, whe
 
 The portfolio must stand on its own: it contains no scores, and everything in it must make sense to a reader with no other context, such as the scorer.
 
-## Understanding the results
+## Run your own MapHub
 
-### The viewer
+MapHub is meant to be copied: a high-energy physics department, say, can run one for hep-ph and hep-th without joining the prototype. Adapt anything you need, from the listings and the page to the code: the code and documents are under the MIT License, which lets you use, change and share them as long as the copyright and license notice stay with them, and the tables under CC BY 4.0 ([License](#license), below). The scoring code is general; the settings, the page's wording and colors, the user agent and the examples in `CLAUDE.md` are the prototype's own.
 
-- The base URL shows the latest day with an announcement; each day also has its own URL, such as `https://kailicao.github.io/maphub-public/2026-10-06`. Weekends have no arXiv listing and no table, and a day without an announcement (an arXiv holiday) is marked in the calendar (sand-colored in the prototype). The arrows, the date box and the calendar move between days and keep a selected participant.
-- By default, papers are ranked by their average score over the participants shown, and participants by the rank correlation (ρ) of their scores with the average of the others'. Select a participant (column name) to sort papers by relevance to them and participants by similarity to them. Select a paper (title) to sort papers by similarity to it and participants by its relevance to them. Similarity is the correlation (r) of that day's scores.
-- **Top papers** (`<base>/top`) lists one participant's highest-scored papers over a range of listing dates (by default the past calendar month up to the latest table, top 50); other participants can be shown beside, with their scores for the same papers, and each listing date opens that day's heatmap. Its URL keeps the choice, as in `<base>/top#p=<pseudonym>&also=<others>&from=2026-09-12&to=2026-10-12&n=50`. Selecting a participant in the heatmap offers a link to their top papers up to that day.
-- Hover over an arXiv ID for its URL, or over a cell for its score. The selection is kept in the URL, so a view can be shared. Columns carry pseudonyms rather than names.
-- The tables behind the viewer are public Parquet files, which you can download and analyze with your own tools ([RESULTS.md, Using the tables](RESULTS.md#using-the-tables)).
+**The name.** MapHub, the MIDAS arXiv Preprint Hub, names the prototype and the copies run within MIDAS, for example by members of the carpentry team for their own disciplines. A copy elsewhere may take whatever name suits it; we would appreciate a note of where it comes from, such as a line in its README and on its page linking to this repository.
 
-### Scoring rubric
+In short (the details are in [RUNNING.md, Setting up a copy](RUNNING.md#setting-up-a-copy)):
 
-Each paper is scored from its title, authors and abstract against a participant's portfolio, by a language model (Claude), on this scale. Intermediate values are allowed.
+1. **Make your copy** of this repository ("Use this template": its main branch holds the code alone), with a tables branch for your tables.
+2. **Choose the listings** in `config-log.json`.
+3. **Set up the portfolios** from `portfolios-template/`: a private repository of their own, or, if your participants agree to public portfolios, a folder of your copy.
+4. **Make the page yours:** the viewer's wording, colors and icons, this README and `CLAUDE.md`.
+5. **Publish** the viewer on GitHub Pages.
+6. **Run it** each morning after arXiv's 20:00 ET announcement, from one host computer, through Claude Code on a Claude subscription whose terms allow this use, or through the Claude API. `CLAUDE.md` sets up the host computer. Once it works, `mh -d` can run the routine unattended on a computer that never sleeps.
+7. **Optionally, go back in time,** building a back catalog of earlier listings.
 
-| Score | Meaning |
-| --- | --- |
-| 100 | The subject wrote it, or would write it if it didn't exist |
-| 80 | The subject coauthored it, or would coauthor it if it didn't exist |
-| 60 | The subject has cited it, or probably will at some point |
-| 30 | The subject probably won't cite it, but it may broaden their view |
-| 0 | Worth a glance at the title, but reading the abstract is probably not worth their time |
+Questions are welcome: kailicao@umich.edu.
 
-The anchors guide the model; they are not calibrated probabilities, so scores rank papers within a column and a day best. Most papers score low for most participants: in the same sample of 70 listings (May 29–Sep 1 and Oct 15–16, 2026), 97% of the scores are below 30, and 0.2% of all scores are 60 or above. In a blind rating study (one rater so far; [DEVELOPMENT.md, Measurements](DEVELOPMENT.md#measurements)), reading a listing in score order found about four in five of the rater's top 5% of papers within its top tenth, against about one in three with a word-matching baseline. A research note on MapHub and this study is in preparation. Low scores come from the first pass, against the outline, and are coarse; scores that matter come from the full portfolio. Scores are AI-generated and can be wrong: they are pointers to papers and people, not judgments of anyone's work.
-
-### Terms
+## Terms
 
 - **Listing:** the new submissions arXiv announces for a date, Monday to Friday, at 20:00 ET the evening before; a table is named by its listing date.
 - **Backfill:** scoring a past listing, rebuilt from arXiv's records by submission time; the back catalog of past listings is the legacy survey.
@@ -117,7 +117,7 @@ The anchors guide the model; they are not calibrated probabilities, so scores ra
 
 ---
 
-**In depth.** The sections below are for participants drafting a portfolio and for anyone who wants the details. This is version 0.9 ([DEVELOPMENT.md, Versions](DEVELOPMENT.md#versions)). [RUNNING.md](RUNNING.md) covers setting up a copy, participants and portfolios, the repositories, the runs and the configuration log, running unattended, and the stages; [RESULTS.md](RESULTS.md) the tables, their format, the back catalogs and the viewer; [DEVELOPMENT.md](DEVELOPMENT.md) how the scoring works and why: the daily table, the prompts, the measurements and budget behind its choices, extension directions, parameters to tune and versions.
+**In depth.** The sections below are for participants drafting a portfolio and for anyone who wants the details. This is version 0.10-pre, on the way to version 0.10 ([DEVELOPMENT.md, Versions](DEVELOPMENT.md#versions)); the repository's documents are listed in [Repository layout](#repository-layout).
 
 ## The portfolio-drafting prompt
 
@@ -129,7 +129,7 @@ Build a preliminary research portfolio for the researcher, group or collaboratio
 Research steps:
 1. Compile the subject's publications: title, arXiv ID (or ADS bibcode or DOI if not on arXiv), year, and role (first author, or coauthor with position in the author list). For a group or collaboration, see the note after these steps. Flag anything you are unsure belongs to the subject.
 2. Read each paper's abstract, and for the most central papers (first-author papers, for a person) also the introduction and conclusions. arXiv's HTML full texts (arxiv.org/html/<ID>) are usually the most reliable way to read a paper; arXiv abstract pages and ADS pages often fail, and repeated requests get rate-limited. Keep track of papers you could read only at title level.
-3. Group the papers into topics from the bottom up: let the topics emerge from what the papers actually do, not from a predefined list. A paper may belong to several topics. Do not add any topic that none of the papers support, even if a profile mentions it as an interest. A topic with only one or two papers may be merged into a close neighbour; ask me when unsure.
+3. Group the papers into topics from the bottom up: let the topics emerge from what the papers actually do, not from a predefined list. A paper may belong to several topics. Do not add any topic that none of the papers support, even if a profile mentions it as an interest. A topic with only one or two papers may be merged into a close neighbor; ask me when unsure.
 
 For a group or collaboration, decide case by case which papers count as the group's, from the documents and the papers themselves (author lists, acknowledgments, the group's stated aims), and ask me about every borderline case. Papers that may belong but are not confirmed can be included with less weight: mark them in the Papers lists, define the marks in one line at the end of the portfolio, and end with a line saying which expertise rests on confirmed papers and which on marked ones.
 
@@ -160,19 +160,36 @@ Then talk the draft through with me. Ask, one question at a time, about (a) pape
 
 ## Repository layout
 
-| Path | Contents |
-| --- | --- |
-| `RUNNING.md` | setting up and running a MapHub: a copy step by step, participants and portfolios, repositories, runs and the configuration log, running unattended, stages |
-| `RESULTS.md` | what a MapHub produces: using the tables, their format, the back catalogs (legacy survey), the web viewer |
-| `DEVELOPMENT.md` | how MapHub works and why: the daily table, the prompts, the measurements and budget, extension directions, parameters to tune, versions |
-| `CLAUDE.md` | the operations file for an AI assistant: setting up the host computer and running MapHub day to day |
-| `config-log.json` | every scoring configuration, with the date it took effect |
-| `scorer/` | `daily_table.py`, which fetches a day's papers, scores them with Claude (through Claude Code or the API) and writes the tables; `local_run.py`, the daily routine around it (`mh`); `driver.py`, which runs that routine unattended (`mh -d`) |
-| `viewer/` | the web viewer (`index.html`, `viewer.js`, `viewer.css`, and its icon: `favicon.svg` with PNG versions) and `serve.py`, a local server for testing |
-| `tables/` | the daily tables, on the [tables branch](https://github.com/kailicao/maphub-public/tree/tables/tables) only (written by the scorer; CC BY 4.0) |
-| `.github/workflows/` | publishing the viewer and tables on GitHub Pages |
-| `portfolios-template/` | a minimal start for a MapHub's portfolios: `participants.json` and one portfolio in the format |
-| `maphub-portfolios/` | the portfolios, in the prototype a private repository of its own (left out by `.gitignore`) |
+```text
+.github/workflows/    publishing the viewer and tables on GitHub Pages
+maphub-portfolios/    the portfolios; in the prototype a private repository of
+                      its own (left out by .gitignore)
+portfolios-template/  a minimal start for a MapHub's portfolios:
+                      participants.json and one portfolio in the format
+scorer/
+  daily_table.py      fetches a day's papers, scores them with Claude (Claude
+                      Code or the API), writes the tables
+  driver.py           runs the daily routine unattended (mh -d)
+  local_run.py        the daily routine around daily_table.py (mh)
+  requirements.txt    the scorer's Python packages (anthropic, pyarrow)
+tables/               the daily tables, on the tables branch only (written by
+                      the scorer; CC BY 4.0)
+viewer/               the web viewer (index.html, viewer.js, viewer.css, icons)
+                      and serve.py, a local server for testing
+CLAUDE.md             the operations file for an AI assistant: setting up the
+                      host computer, running MapHub day to day
+config-log.json       every scoring configuration, with the date it took effect
+DEVELOPMENT.md        how MapHub works and why: the daily table, past listings,
+                      prompts, measurements, versions
+LICENSE               the MIT License
+README.md             this file, for first readers
+RESULTS.md            what a MapHub produces: the tables, their format, the
+                      back catalogs, the web viewer
+RUNNING.md            setting up and running a MapHub: repositories, a copy
+                      step by step, participants, runs, stages
+```
+
+The tables are on the [tables branch](https://github.com/kailicao/maphub-public/tree/tables/tables).
 
 ## License
 

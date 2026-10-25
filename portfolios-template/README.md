@@ -2,7 +2,7 @@
 
 A minimal start for a MapHub's portfolios (RUNNING.md, Setting up a copy, step 3). Copy this folder to `maphub-portfolios/`, either as a private repository of its own or as a folder of your copy, then:
 
-- replace `1234/` with one folder per participant, named by their pseudonym, each holding `portfolio.md` in the format of the README, Writing a portfolio (the portfolio-drafting prompt writes a first one);
+- replace `1234/` with one folder per participant, named by their pseudonym, each holding `portfolio.md` in the format of the main repository's README, Writing a portfolio (the portfolio-drafting prompt writes a first one);
 - list every participant in `participants.json`, with their status;
 - rewrite this README for your participants, or delete it.
 

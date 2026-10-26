@@ -22,7 +22,7 @@ Steps:
      from the listing that announced them (4 of 345 on Oct 6, 2026) and
      appear in their submission window's listing instead. The papers are saved in the work dir, so a rerun still
      has them.
-  2. Score. Prompt v1 takes two passes: one request per chunk of about 50 papers
+  2. Score. Prompts v1 and v2 take two passes: one request per chunk of about 50 papers
      scores every participant against their outlines (the joint outline: each
      portfolio's title, Overview, and topics' Next and Expertise lines, cut at run
      time); then each participant's papers with an outline score of `threshold`
@@ -30,7 +30,8 @@ Steps:
      request per participant per chunk, with the instructions and papers first,
      cached across participants.
   3. Write. One Parquet file per ID month, the viewer's index.json and
-     empty.json (the dates without an announcement). The
+     empty.json (the dates without an announcement), and the top-paper
+     summaries of complete years (tables/top/). The
      viewer takes titles and authors from DataCite; for the rare paper whose
      DOI DataCite lacks, a <date>.meta.json beside the Parquet file holds them.
   4. Resume. Each request's scores are saved as they arrive (outline chunks,
@@ -44,7 +45,7 @@ Two ways to send requests (--via):
                seat the claude command is signed in to. Only the participants
                named in MAPHUB_OWN_PARTICIPANTS (environment or .env,
                comma-separated) are scored; scorer/local_run.py sets it to every
-               active participant.
+               participant with status active or no-legacy.
   api          The Claude API, with ANTHROPIC_API_KEY from the environment or
                the repo root's .env file, which .gitignore keeps out of git.
                The API key is withheld from Claude Code, so it never bills

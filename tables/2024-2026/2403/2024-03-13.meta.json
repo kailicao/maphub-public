@@ -1,0 +1,32 @@
+{
+ "07074": {
+  "title": "A novel Bayesian approach for decomposing the radio emission of quasars: I. Modelling the radio excess in red quasars",
+  "authors": [
+   "B.-H. Yue",
+   "P. N. Best",
+   "K. J. Duncan"
+  ],
+  "n_authors": 9,
+  "primary": "astro-ph.GA"
+ },
+ "07083": {
+  "title": "HST Survey of the Orion Nebula Cluster in ACS/Visible and WFC3/IR Bands. IV. A Bayesian multi-wavelength study of stellar parameters in the ONC",
+  "authors": [
+   "Giovanni M. Strampelli",
+   "Massimo Robberto",
+   "Laurent Pueyo"
+  ],
+  "n_authors": 7,
+  "primary": "astro-ph.SR"
+ },
+ "07401": {
+  "title": "Constraining the Initial Mass function in the Epoch of Reionization from Astrophysical and Cosmological data",
+  "authors": [
+   "A. Lapi",
+   "G. Gandolfi",
+   "L. Boco"
+  ],
+  "n_authors": 9,
+  "primary": "astro-ph.GA"
+ }
+}

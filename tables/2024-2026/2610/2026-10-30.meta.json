@@ -1,0 +1,3259 @@
+{
+ "37720": {
+  "title": "LRMoE: Demand-Side Load Re-Calibration for Efficient MoE Training on Memory-Constrained Nodes",
+  "authors": [
+   "Jiaming Hu",
+   "Zhida Jiang",
+   "Zhaolong Xing"
+  ],
+  "n_authors": 6,
+  "primary": "cs.AI"
+ },
+ "37731": {
+  "title": "Amortized Localized Posterior Inference for Model Calibration with Application to an Ocean Turbulence Closure",
+  "authors": [
+   "Exaucé Luweh Adjim Ngarti",
+   "Élise Arnaud",
+   "Léo Nicoletti"
+  ],
+  "n_authors": 5,
+  "primary": "cs.AI"
+ },
+ "37732": {
+  "title": "ThinkJev: One Thought, Every Budget for Calibrated Typed Decisions",
+  "authors": [
+   "Xiaolu Ding",
+   "Kai Yang",
+   "Dongdong Liu"
+  ],
+  "n_authors": 3,
+  "primary": "cs.AI"
+ },
+ "37739": {
+  "title": "OpenFrontiers: A Collection of Open Research Problems and a Benchmark for Scientific Rediscovery",
+  "authors": [
+   "Jiarui Yao",
+   "Ruida Wang",
+   "Tong Zhang"
+  ],
+  "n_authors": 3,
+  "primary": "cs.AI"
+ },
+ "37747": {
+  "title": "Identifying Scientifically Interesting Galaxies with Vision-Language Models",
+  "authors": [
+   "Yixuan Cheng",
+   "Nolan Koblischke",
+   "Jo Bovy"
+  ],
+  "n_authors": 3,
+  "primary": "astro-ph.IM"
+ },
+ "37751": {
+  "title": "A GLIMPSE of Dark Matter: JWST Constraints on Early Structure Formation",
+  "authors": [
+   "Julian B. Muñoz",
+   "John Chisholm",
+   "Seiji Fujimoto"
+  ],
+  "n_authors": 16,
+  "primary": "astro-ph.CO"
+ },
+ "37752": {
+  "title": "Disentangling constraints on $S_8$ from the high and low redshift CMB",
+  "authors": [
+   "Joann Jones",
+   "Ualype de Andrade Uchôa",
+   "Scott Dodelson"
+  ],
+  "n_authors": 3,
+  "primary": "astro-ph.CO"
+ },
+ "37757": {
+  "title": "Seeing Unseen Gravitational Wave Inspirals at the Galactic Center",
+  "authors": [
+   "Pau Amaro Seoane",
+   "Qimin Song",
+   "Shao-Dong Zhao"
+  ],
+  "n_authors": 17,
+  "primary": "astro-ph.HE"
+ },
+ "37758": {
+  "title": "Thinner Disks Struggle to Launch Jets: GRMHD Simulations of Magnetic Field Generation and Transport",
+  "authors": [
+   "Jonatan Jacquemin-Ide",
+   "Mitchell C. Begelman",
+   "Henrik Latter"
+  ],
+  "n_authors": 5,
+  "primary": "astro-ph.HE"
+ },
+ "37759": {
+  "title": "Extreme eccentricity in double neutron stars without exotic physics",
+  "authors": [
+   "Thomas M. Tauris"
+  ],
+  "n_authors": 1,
+  "primary": "astro-ph.HE"
+ },
+ "37763": {
+  "title": "Hot off the Stacks: X-rays in Romulus25, Part I - Comparisons to Observations from eRosita",
+  "authors": [
+   "N. Nicole Sanchez",
+   "Andrew Benson",
+   "Gwen Rudie"
+  ],
+  "n_authors": 10,
+  "primary": "astro-ph.GA"
+ },
+ "37767": {
+  "title": "Resolving the thermal component of stellar feedback with the \"anchor-and-refine\" scheme in galactic simulations",
+  "authors": [
+   "Chengzhe Li",
+   "Hui Li",
+   "Wei Cui"
+  ],
+  "n_authors": 7,
+  "primary": "astro-ph.GA"
+ },
+ "37768": {
+  "title": "NORI: a GPU-accelerated code for simulating self-gravitating and self-interacting dark matter",
+  "authors": [
+   "Oliver Zier",
+   "Ruediger Pakmor",
+   "Xuejian Shen"
+  ],
+  "n_authors": 7,
+  "primary": "astro-ph.IM"
+ },
+ "37769": {
+  "title": "Extra! Extra! X-ray Emission!: X-rays in Romulus25, Part II - Physical Drivers of X-ray Emission in the CGM",
+  "authors": [
+   "N. Nicole Sanchez",
+   "Andrew Benson",
+   "Gwen Rudie"
+  ],
+  "n_authors": 7,
+  "primary": "astro-ph.GA"
+ },
+ "37773": {
+  "title": "A double debris disc around a white dwarf sculpted by two planetary bodies",
+  "authors": [
+   "Nicola Pietro Gentile Fusillo",
+   "Felipe Lagos-Vilches",
+   "Boris T. Gänsicke"
+  ],
+  "n_authors": 5,
+  "primary": "astro-ph.SR"
+ },
+ "37774": {
+  "title": "Not so dead after all: young stars in the massive S0 NGC 3115",
+  "authors": [
+   "João P. V. Benedetti",
+   "Alexandre Vazdekis",
+   "Anna Ferré-Mateu"
+  ],
+  "n_authors": 6,
+  "primary": "astro-ph.GA"
+ },
+ "37775": {
+  "title": "Ejected and Rejected: Strong Scatterings in Dense Star Clusters",
+  "authors": [
+   "Adam Distler",
+   "Nicholas C. Stone"
+  ],
+  "n_authors": 2,
+  "primary": "astro-ph.GA"
+ },
+ "37782": {
+  "title": "The Redshift-Space Cluster-Galaxy Cross-Correlation as a Probe of Gravity on Cosmic Scales",
+  "authors": [
+   "Nicole Marcelina Gountanis",
+   "David H. Weinberg",
+   "Andrés N. Salcedo"
+  ],
+  "n_authors": 4,
+  "primary": "astro-ph.CO"
+ },
+ "37786": {
+  "title": "WebAnything: From the Wild Web to Scalable Agent Environments",
+  "authors": [
+   "Tianci Xie",
+   "Zikun Cai",
+   "Chaoyun Zhang"
+  ],
+  "n_authors": 7,
+  "primary": "cs.AI"
+ },
+ "37789": {
+  "title": "Revisiting Sub-Neptune Population Synthesis: The Role of Core Luminosity in Boil-off, Photoevaporation, and the Radius Distribution",
+  "authors": [
+   "Yao Tang",
+   "Jonathan J. Fortney",
+   "Natalie Batalha"
+  ],
+  "n_authors": 4,
+  "primary": "astro-ph.EP"
+ },
+ "37792": {
+  "title": "Searching for Circumplanetary Dust in the Cavity of the AB Aurigae Disk with ALMA",
+  "authors": [
+   "Lillian Jiang",
+   "Brendan P. Bowler",
+   "Ya-lin Wu"
+  ],
+  "n_authors": 4,
+  "primary": "astro-ph.EP"
+ },
+ "37809": {
+  "title": "What Does an Ontology Catch? Curated, LLM-Generated and Data-Derived Ontologies as Checkers of LLM Agents over Knowledge Graphs",
+  "authors": [
+   "Michal Orzechowski",
+   "Rund Tawfiq",
+   "Tomasz Kosciolek"
+  ],
+  "n_authors": 3,
+  "primary": "cs.AI"
+ },
+ "37821": {
+  "title": "Simulation-Informed Dust Masses in Typical $6<z<14$ JWST Galaxies",
+  "authors": [
+   "Jed McKinney",
+   "Dhruv T. Zimmerman",
+   "Desika Narayanan"
+  ],
+  "n_authors": 8,
+  "primary": "astro-ph.GA"
+ },
+ "37825": {
+  "title": "Probing Cosmology with Diffusion Models: Memorization, Generalization, and Parameter Estimation",
+  "authors": [
+   "Jiaming Pan",
+   "Nicholas Kern"
+  ],
+  "n_authors": 2,
+  "primary": "astro-ph.CO"
+ },
+ "37830": {
+  "title": "Measuring Where Intent Gets Lost in Agentic Smart Contract Synthesis",
+  "authors": [
+   "Abhinav Goel",
+   "Agostino Capponi",
+   "Alfio Gliozzo"
+  ],
+  "n_authors": 4,
+  "primary": "cs.AI"
+ },
+ "37836": {
+  "title": "Early Dark Energy Crowds Out Interacting Dark Energy",
+  "authors": [
+   "William Giarè",
+   "Jeremy Sakstein"
+  ],
+  "n_authors": 2,
+  "primary": "astro-ph.CO"
+ },
+ "37849": {
+  "title": "Detecting Covert Collusion between AI Agents through Partner-Outsider Positive Listening",
+  "authors": [
+   "Kevin Yandoka Denamganaï"
+  ],
+  "n_authors": 1,
+  "primary": "cs.AI"
+ },
+ "37851": {
+  "title": "Evaluating and improving AI agents for sequencing protocol understanding",
+  "authors": [
+   "Chi-Lam Poon",
+   "Michael Goneos",
+   "Zezheng Song"
+  ],
+  "n_authors": 4,
+  "primary": "cs.AI"
+ },
+ "37852": {
+  "title": "Core-collapse universality for inelastic self-interacting dark matter halos",
+  "authors": [
+   "Evan Batteas",
+   "Alexander Brisebois",
+   "Maheen Hemani"
+  ],
+  "n_authors": 9,
+  "primary": "astro-ph.CO"
+ },
+ "37859": {
+  "title": "Seq@K: Evaluating Language Models Under Sequential Feedback",
+  "authors": [
+   "Thomson Yen",
+   "Gilbert Yang",
+   "Naimeng Ye"
+  ],
+  "n_authors": 11,
+  "primary": "cs.AI"
+ },
+ "37867": {
+  "title": "What Constitutes Food Similarity? Visual Representations and Retrieval in Indian Cuisine",
+  "authors": [
+   "Saransh Kumar Gupta",
+   "Akshadha Sharma",
+   "Lipika Dey"
+  ],
+  "n_authors": 5,
+  "primary": "cs.AI"
+ },
+ "37875": {
+  "title": "Verification Learning Theory: A Process Model of Checking and Retention in AI-Assisted Judgment",
+  "authors": [
+   "Christoph Trattner"
+  ],
+  "n_authors": 1,
+  "primary": "cs.AI"
+ },
+ "37876": {
+  "title": "No Significant Excess in Typical Variability in CLAS+ Changing-Look AGN Candidates in Rubin DP2",
+  "authors": [
+   "Lilianne Nakazono"
+  ],
+  "n_authors": 1,
+  "primary": "astro-ph.GA"
+ },
+ "37893": {
+  "title": "The MARTINI platform II. Tracing r-process nucleosynthesis in neutron star mergers with long-lived remnants",
+  "authors": [
+   "Eleonora Loffredo",
+   "Diego Vescovi",
+   "Albino Perego"
+  ],
+  "n_authors": 5,
+  "primary": "astro-ph.HE"
+ },
+ "37895": {
+  "title": "Considering Numerical Relativity Surrogate Models for AGN Channel Merger Dynamics",
+  "authors": [
+   "Shawn Ray",
+   "Keefe Mitman",
+   "Vera Delfavero"
+  ],
+  "n_authors": 11,
+  "primary": "astro-ph.HE"
+ },
+ "37896": {
+  "title": "The Anatomy of Socio-Demographics in Pluralistic Offensiveness Modeling: When and Where It Helps, and the Role of Reasoning",
+  "authors": [
+   "Yifan Wang",
+   "Leixin Zhang",
+   "Jinyi Mu"
+  ],
+  "n_authors": 7,
+  "primary": "cs.AI"
+ },
+ "37902": {
+  "title": "Validating an X-ray-based method for identifying Fermi blazars",
+  "authors": [
+   "J. L. Weiss",
+   "E. J. Marchesini",
+   "I. Andruchow"
+  ],
+  "n_authors": 4,
+  "primary": "astro-ph.HE"
+ },
+ "37905": {
+  "title": "FilingLoop: Evaluating and Evolving LLM Agents for Corporate Disclosure Review and Revision",
+  "authors": [
+   "Wentao Zhang",
+   "Yilei Zhao",
+   "Guangyan Gan"
+  ],
+  "n_authors": 5,
+  "primary": "cs.AI"
+ },
+ "37906": {
+  "title": "Beyond Low-Pass Dynamics: Frequency-Selective Spiking Reservoirs with Resonant Neurons",
+  "authors": [
+   "Aurora Micheli",
+   "Claudio Gallicchio",
+   "Nergis Tomen"
+  ],
+  "n_authors": 3,
+  "primary": "cs.AI"
+ },
+ "37919": {
+  "title": "SciGame: Let Agents Play the Scientific Discovery Games in the Real and Counterfactual World",
+  "authors": [
+   "Yusheng Zhao",
+   "Bowei He",
+   "Xue Liu"
+  ],
+  "n_authors": 4,
+  "primary": "cs.AI"
+ },
+ "37923": {
+  "title": "VerifiedLab: Harnessing Knowns for Unknowns",
+  "authors": [
+   "Yu Yao",
+   "Jiayi Dong",
+   "Yang Yang"
+  ],
+  "n_authors": 5,
+  "primary": "cs.AI"
+ },
+ "37926": {
+  "title": "GARDEN: Generalist Autonomous Reward Design Through Evidence Navigation for Cooperative Multi-Agent Reinforcement Learning",
+  "authors": [
+   "Dogan Urgun"
+  ],
+  "n_authors": 1,
+  "primary": "cs.AI"
+ },
+ "37927": {
+  "title": "Machine learning applications in the heliosphere",
+  "authors": [
+   "Vishal Upendran",
+   "Banafsheh Ferdousi"
+  ],
+  "n_authors": 2,
+  "primary": "astro-ph.SR"
+ },
+ "37932": {
+  "title": "Understanding Large Language Models as Numerical Optimizers",
+  "authors": [
+   "Lingyun Guo",
+   "Ali Bereyhi"
+  ],
+  "n_authors": 2,
+  "primary": "cs.AI"
+ },
+ "37935": {
+  "title": "SkillMem: Compact External Skill Memory for Latent Multi-Agent Reasoning",
+  "authors": [
+   "Yuxuan Zhu",
+   "Mohammad Mohammadi Amiri",
+   "Pin-Yu Chen"
+  ],
+  "n_authors": 4,
+  "primary": "cs.AI"
+ },
+ "37942": {
+  "title": "Simulating and Characterizing Non-Gaussian Small-Scale Polarized Emission",
+  "authors": [
+   "Mark A. Bishop",
+   "Brandon S. Hensley",
+   "Krzysztof M. Gorski"
+  ],
+  "n_authors": 5,
+  "primary": "astro-ph.CO"
+ },
+ "37968": {
+  "title": "Probabilistic Stellar Mass and Radius Estimation with Bayesian Hierarchical Stacking",
+  "authors": [
+   "Maxence Lamirel",
+   "Andrés Moya",
+   "Roberto J. López-Sastre"
+  ],
+  "n_authors": 4,
+  "primary": "astro-ph.SR"
+ },
+ "37971": {
+  "title": "The Carousel Lens III: Joint lens convergence and source kinematic modeling",
+  "authors": [
+   "William Sheu",
+   "Xiaosheng Huang",
+   "Tania M. Barone"
+  ],
+  "n_authors": 12,
+  "primary": "astro-ph.GA"
+ },
+ "37989": {
+  "title": "GAUSS: A Workload-Aware Analytical and Monte-Carlo Simulator for LLM Inference Serving",
+  "authors": [
+   "Srikant Bharadwaj",
+   "Ankur Mallick",
+   "Spyridon Mastorakis"
+  ],
+  "n_authors": 6,
+  "primary": "cs.AI"
+ },
+ "37997": {
+  "title": "Search for Eccentric Neutron Star-Black Hole Binaries in Advanced LIGO's Fourth Observing Run using Effective-One-Body Waveforms",
+  "authors": [
+   "Aleyna Akyüz",
+   "Keisi Kacanja",
+   "Rahul Dhurkunde"
+  ],
+  "n_authors": 4,
+  "primary": "astro-ph.HE"
+ },
+ "37999": {
+  "title": "Phase-resolved X-ray spectroscopy of the Vela pulsar with NICER observations",
+  "authors": [
+   "E. Zubieta",
+   "F. García",
+   "S. del Palacio"
+  ],
+  "n_authors": 5,
+  "primary": "astro-ph.HE"
+ },
+ "38006": {
+  "title": "Algorithmic Bias from the Perspectives of Healthcare Professionals",
+  "authors": [
+   "Jennifer Xu",
+   "Tamara Babaian"
+  ],
+  "n_authors": 2,
+  "primary": "cs.AI"
+ },
+ "38014": {
+  "title": "Focal plane modal estimation of high-order wavefront drifts on coronagraphic testbeds",
+  "authors": [
+   "Saikrishna Manojkumar",
+   "Susan F. Redmond",
+   "Leonid Pogorelyuk"
+  ],
+  "n_authors": 7,
+  "primary": "astro-ph.IM"
+ },
+ "38024": {
+  "title": "Assessing Language Models for Scientific Applications: Inertial Confinement Fusion as a Use Case",
+  "authors": [
+   "P. B. Radha",
+   "D. D. Meyerhofer",
+   "M. Bhattarai"
+  ],
+  "n_authors": 14,
+  "primary": "cs.AI"
+ },
+ "38035": {
+  "title": "Tidal shells as clocks of galaxy mergers and tests of cosmological models",
+  "authors": [
+   "Ivana Ebrová",
+   "Michal Bílek",
+   "Elisabeth Sola"
+  ],
+  "n_authors": 5,
+  "primary": "astro-ph.GA"
+ },
+ "38043": {
+  "title": "Evolutionary Demographics of Molecular Ice Mantles in Young Stars with SPHEREx",
+  "authors": [
+   "J. Serna",
+   "S. P. Matt",
+   "M. McClure"
+  ],
+  "n_authors": 5,
+  "primary": "astro-ph.SR"
+ },
+ "38044": {
+  "title": "PromptSense: Sentiment-Aware Mental Health Chatbot with Dynamic Prompting",
+  "authors": [
+   "Sugi Lee",
+   "Jianlong Zhou",
+   "Jing sUN"
+  ],
+  "n_authors": 3,
+  "primary": "cs.AI"
+ },
+ "38061": {
+  "title": "Cosmic rays in galaxy halos I: the circumgalactic transport rate and a dynamically significant cosmic-ray reservoir",
+  "authors": [
+   "Roland M. Crocker",
+   "Mark R. Krumholz"
+  ],
+  "n_authors": 2,
+  "primary": "astro-ph.HE"
+ },
+ "38083": {
+  "title": "The scale of homogeneity in DESI Data Release 1",
+  "authors": [
+   "Cullan Howlett",
+   "L. Giani",
+   "Elizabeth G. O'Brien"
+  ],
+  "n_authors": 68,
+  "primary": "astro-ph.CO"
+ },
+ "38097": {
+  "title": "Young Planets around Young Accreting Stars: II. Circumplanetary Disk Formation and Accretion",
+  "authors": [
+   "Arturo Cevallos Soto",
+   "Zhaohuan Zhu"
+  ],
+  "n_authors": 2,
+  "primary": "astro-ph.EP"
+ },
+ "38100": {
+  "title": "Evaluating Causal Reasoning in LLMs: A Case Study in the Challenges of Procedural Generation",
+  "authors": [
+   "Justin Clarke",
+   "Isha Karn",
+   "Patrick Murray"
+  ],
+  "n_authors": 5,
+  "primary": "cs.AI"
+ },
+ "38101": {
+  "title": "AI-Driven Digital Twin Framework for Warehouse Logistics Automation Optimization",
+  "authors": [
+   "Md Mahinur Alam",
+   "Kanita Jerin Tanha",
+   "Md Tanjin Alam"
+  ],
+  "n_authors": 5,
+  "primary": "cs.AI"
+ },
+ "38105": {
+  "title": "Experimental Demonstration of Double-Fourier Interferometer Imaging for Future Space-Based Far-Infrared Observatories",
+  "authors": [
+   "Jeremy P. Scott",
+   "Locke D. Spencer",
+   "Chris Benson"
+  ],
+  "n_authors": 7,
+  "primary": "astro-ph.IM"
+ },
+ "38107": {
+  "title": "Tayler Instability and Its Saturation in Rotating Stars",
+  "authors": [
+   "Valentin Skoutnev",
+   "Andrei Beloborodov"
+  ],
+  "n_authors": 2,
+  "primary": "astro-ph.SR"
+ },
+ "38117": {
+  "title": "Too Hard, Too Easy, Just Right: Performance-Driven Challenge Adaptation in Virtual Reality Firefighter Training",
+  "authors": [
+   "Xuan Wang",
+   "Jianan Jiang",
+   "Rongqian Chen"
+  ],
+  "n_authors": 5,
+  "primary": "cs.AI"
+ },
+ "38120": {
+  "title": "Post-Training Large Language Models with LLMON",
+  "authors": [
+   "Basel Shbita",
+   "Michael Hind",
+   "Chad DeLuca"
+  ],
+  "n_authors": 11,
+  "primary": "cs.AI"
+ },
+ "38140": {
+  "title": "Gravitational Wave Background from Metastable Current-Carrying Cosmic Strings",
+  "authors": [
+   "Ivan Rybak",
+   "Rinku Maji",
+   "Qaisar Shafi"
+  ],
+  "n_authors": 3,
+  "primary": "astro-ph.CO"
+ },
+ "38144": {
+  "title": "Decompose, Don't Expand: Capability-Independent AI Systems by Construction",
+  "authors": [
+   "Tejaswi Gowda"
+  ],
+  "n_authors": 1,
+  "primary": "cs.AI"
+ },
+ "38147": {
+  "title": "SkillCT: A Multidimensional Benchmark and Execution-Free Baseline for Agent Skill Assessment",
+  "authors": [
+   "Mengyu Sun",
+   "Zunlong Zhou",
+   "Ziyuan Yang"
+  ],
+  "n_authors": 4,
+  "primary": "cs.AI"
+ },
+ "38152": {
+  "title": "BridgeRouter: Gain-Aware Instance Routing over Cross-Modal Bridge Portfolios",
+  "authors": [
+   "Ruoxi Piao",
+   "Alicia Lu",
+   "Yunzhen Zhang"
+  ],
+  "n_authors": 5,
+  "primary": "cs.AI"
+ },
+ "38159": {
+  "title": "Turbulent gas-rich discs at high redshift: Chaotic orbits and rapid bulge formation at high gas fraction",
+  "authors": [
+   "Johan M. Villa-Alatorre",
+   "Joss Bland-Hawthorn",
+   "Thor Tepper-Garcia"
+  ],
+  "n_authors": 5,
+  "primary": "astro-ph.GA"
+ },
+ "38165": {
+  "title": "Model of the instrumental polarization induced by a rotating HWP with anti-reflective sub-wavelength structures for CMB polarimetry",
+  "authors": [
+   "Ryota Takaku",
+   "Hiroaki Imada",
+   "Guillaume Patanchon"
+  ],
+  "n_authors": 4,
+  "primary": "astro-ph.IM"
+ },
+ "38175": {
+  "title": "DecompGym: Benchmarking LLM Agents on Designing Decomposition Algorithms",
+  "authors": [
+   "Sikai Cheng",
+   "Tinghan Ye",
+   "Arnaud Deza"
+  ],
+  "n_authors": 7,
+  "primary": "cs.AI"
+ },
+ "38192": {
+  "title": "Unveiling the Shock-Excited Molecular Environment in the Orion Protostar HOPS 370",
+  "authors": [
+   "Somnath Dutta",
+   "Koshvendra Singh",
+   "Devendra K Ojha"
+  ],
+  "n_authors": 9,
+  "primary": "astro-ph.GA"
+ },
+ "38194": {
+  "title": "Prototype-Guided Dynamic Domain Modulation and a Large-Scale Multi-SKU Benchmark for Shampoo Bottle Surface Defect Detection",
+  "authors": [
+   "Yuehang Li",
+   "Xiao Wang",
+   "Qiang Chen"
+  ],
+  "n_authors": 7,
+  "primary": "cs.AI"
+ },
+ "38201": {
+  "title": "From Natural Language to Real Schematics: An Automated Workflow for Power Electronics Schematic Synthesis",
+  "authors": [
+   "Bowen Su",
+   "Huan Chen",
+   "Jiahua Ying"
+  ],
+  "n_authors": 7,
+  "primary": "cs.AI"
+ },
+ "38210": {
+  "title": "GAAC: Lossless KV Compression for Bandwidth-Efficient LLM Inference on Personal Devices",
+  "authors": [
+   "Yipin Guo",
+   "Arun M George",
+   "Siddharth Joshi"
+  ],
+  "n_authors": 3,
+  "primary": "cs.AI"
+ },
+ "38215": {
+  "title": "Disparity Laundering: Consensus Without Fairness in Clinical Multi-Agent Systems",
+  "authors": [
+   "Xiaoyang Wang",
+   "Tianrui Wang",
+   "Christopher C. Yang"
+  ],
+  "n_authors": 3,
+  "primary": "cs.AI"
+ },
+ "38220": {
+  "title": "Rubricon: Automated Rubric Generation and Refinement for LLM Evaluation and Training",
+  "authors": [
+   "Ulyana Tkachenko",
+   "Hui Wen Goh",
+   "Guram Gogia"
+  ],
+  "n_authors": 4,
+  "primary": "cs.AI"
+ },
+ "38225": {
+  "title": "FACTS-MAS: A Multi-Agent Architecture for Adaptive Forecasting from Heterogeneous Evidence",
+  "authors": [
+   "Madumita Karthikeyan",
+   "Umang Rajnikant Bid",
+   "Rong Pan"
+  ],
+  "n_authors": 3,
+  "primary": "cs.AI"
+ },
+ "38232": {
+  "title": "A Spectral-model-independent Diagnostic of Phase-resolved Spectral Convergence in Swift J0243.6+6124",
+  "authors": [
+   "Bo-Yan Chen",
+   "Peng-Ju Wang",
+   "Shu Zhang"
+  ],
+  "n_authors": 12,
+  "primary": "astro-ph.HE"
+ },
+ "38235": {
+  "title": "Age-Resolved Vertical Motions in the Milky Way Warp: A Localized Enhancement in Intermediate-Age Populations",
+  "authors": [
+   "Xiaoyue Zhou",
+   "Xiaodian Chen",
+   "Haifeng Wang"
+  ],
+  "n_authors": 6,
+  "primary": "astro-ph.GA"
+ },
+ "38245": {
+  "title": "Verification-Guided Retrosynthesis: Reaction Feedback and Evidence Timing",
+  "authors": [
+   "Hongxuan Shi",
+   "Hankz Hankui Zhuo"
+  ],
+  "n_authors": 2,
+  "primary": "cs.AI"
+ },
+ "38264": {
+  "title": "Asteroseismic properties of young pulsators in the Perseus Molecular Cloud. Discovery of period-spacing patterns in HD 281229",
+  "authors": [
+   "Saakshi Wadhwa",
+   "Dario J. Fritzewski",
+   "Gang Li"
+  ],
+  "n_authors": 4,
+  "primary": "astro-ph.SR"
+ },
+ "38280": {
+  "title": "Machine Learning Based Classification of Type 1 Active Galactic Nuclei",
+  "authors": [
+   "Jie Li",
+   "Xu-Liang Fan"
+  ],
+  "n_authors": 2,
+  "primary": "astro-ph.CO"
+ },
+ "38304": {
+  "title": "Inner-Learning: From Hand-Coded Beliefs to Declarative Knowledge in Trick-Taking Games",
+  "authors": [
+   "Stefan Edelkamp"
+  ],
+  "n_authors": 1,
+  "primary": "cs.AI"
+ },
+ "38309": {
+  "title": "NSF-DOE Vera C. Rubin Observatory's First View of the Neptune Trojan L5 (Trailing) Cloud: Two New Long-Term Stable Trojans",
+  "authors": [
+   "Megan E. Schwamb",
+   "Pedro H. Bernardinelli",
+   "Kathryn Volk"
+  ],
+  "n_authors": 15,
+  "primary": "astro-ph.EP"
+ },
+ "38313": {
+  "title": "Game-Theoretic Foundations for Undiscounted Bisimulation Metrics",
+  "authors": [
+   "Matthew Zurek",
+   "Yudong Chen",
+   "Josiah P. Hanna"
+  ],
+  "n_authors": 3,
+  "primary": "cs.AI"
+ },
+ "38314": {
+  "title": "CHORD: Cross-Model Hallucination Detection via Relational Graph Discrimination",
+  "authors": [
+   "Yongxin Deng",
+   "Zhen Fang",
+   "Guansong Pang"
+  ],
+  "n_authors": 5,
+  "primary": "cs.AI"
+ },
+ "38317": {
+  "title": "Numerical Simulations of the interaction between winds from tidal disruption event and supermassive black hole circumnuclear medium",
+  "authors": [
+   "De-Fu Bu",
+   "Yu-Heng Sheng",
+   "Liang Chen"
+  ],
+  "n_authors": 6,
+  "primary": "astro-ph.HE"
+ },
+ "38326": {
+  "title": "Can LLMs Faithfully Solve Ontology Engineering Tasks? A Mechanistic Interpretability Study",
+  "authors": [
+   "Bohui Zhang",
+   "Albert Meroño-Peñuela",
+   "Elena Simperl"
+  ],
+  "n_authors": 3,
+  "primary": "cs.AI"
+ },
+ "38342": {
+  "title": "Investor's Last Exam: Can AI Agents Do Equity Investment Without Seeing the Future?",
+  "authors": [
+   "Huangfei Jiang",
+   "Anning Hu",
+   "Kai Sheng"
+  ],
+  "n_authors": 10,
+  "primary": "cs.AI"
+ },
+ "38356": {
+  "title": "Encode Once, Answer Many: Internalizing Context via Parametric Flow",
+  "authors": [
+   "Xinhao Zhong",
+   "Mengxuan Wu",
+   "Chonghua Liao"
+  ],
+  "n_authors": 25,
+  "primary": "cs.AI"
+ },
+ "38362": {
+  "title": "Characterisation of the ILMT 4K x 4K TDI CCD imager",
+  "authors": [
+   "Gokul singh Mehra",
+   "Bhavya Ailawadhi",
+   "Talat Akhunov"
+  ],
+  "n_authors": 13,
+  "primary": "astro-ph.IM"
+ },
+ "38382": {
+  "title": "Compute Has Shape: Self-Morphing the Internal Computation of Frozen LLMs",
+  "authors": [
+   "Junxi Wu",
+   "Yiwen Guo",
+   "Shu-Tao Xia"
+  ],
+  "n_authors": 3,
+  "primary": "cs.AI"
+ },
+ "38391": {
+  "title": "SCOPE: Selective Critical-Step On-Policy Self-Distillation for Agentic Reinforcement Learning",
+  "authors": [
+   "Qirui Liu",
+   "Wei Cao",
+   "Yu Mi"
+  ],
+  "n_authors": 8,
+  "primary": "cs.AI"
+ },
+ "38392": {
+  "title": "Masked Erosion: How Acceptance Gates Lose Redundant Safeguards in Self-Improving Agents",
+  "authors": [
+   "Hau-Sing So",
+   "Daixian Liu",
+   "Weicai Long"
+  ],
+  "n_authors": 3,
+  "primary": "cs.AI"
+ },
+ "38397": {
+  "title": "Gravitational Dark Matter Production from Spectator Field in $R^2$-Higgs Inflation",
+  "authors": [
+   "Arnab Samanta",
+   "Rajesh Mondal",
+   "Tanmoy Modak"
+  ],
+  "n_authors": 3,
+  "primary": "astro-ph.CO"
+ },
+ "38398": {
+  "title": "Agent Transfer Protocol: Server-Mediated Agent-to-Agent Communication Architecture for the Agentic Web",
+  "authors": [
+   "Yuqi Qiu",
+   "Zuyao Xu",
+   "Lu Sun"
+  ],
+  "n_authors": 8,
+  "primary": "cs.AI"
+ },
+ "38410": {
+  "title": "PyMsOfa 2.0: A Pure-Python Implementation of the IAU Standards of Fundamental Astronomy Service",
+  "authors": [
+   "Dongjie Tan",
+   "Jianghui Ji",
+   "Jiacheng Liu"
+  ],
+  "n_authors": 3,
+  "primary": "astro-ph.IM"
+ },
+ "38411": {
+  "title": "Governance-Aware Federated Learning for Multi-Agent AI Systems: A Policy-Driven Framework for Trustworthy Collaborative AI",
+  "authors": [
+   "Kiranmayee Janardhan",
+   "Karthick S",
+   "Madhusmita Panda"
+  ],
+  "n_authors": 5,
+  "primary": "cs.AI"
+ },
+ "38419": {
+  "title": "The Ubiquity of White-Light Flares on the Sun",
+  "authors": [
+   "Shuanghong Li",
+   "Yongliang Song",
+   "Kun Wang"
+  ],
+  "n_authors": 6,
+  "primary": "astro-ph.SR"
+ },
+ "38432": {
+  "title": "Migration Traps as Variability Attractors. II. Nonmonotonic X-Ray Timing Signatures of Embedded Stellar-Mass Black Holes in AGN Disks",
+  "authors": [
+   "Jing-Tong Xing",
+   "Tong Liu",
+   "Mouyuan Sun"
+  ],
+  "n_authors": 8,
+  "primary": "astro-ph.HE"
+ },
+ "38439": {
+  "title": "Predict the Reward, Not the World: World Reward Models for ML Agents",
+  "authors": [
+   "Yuxiao Lee",
+   "Zherui Yang",
+   "Fan Liu"
+  ],
+  "n_authors": 4,
+  "primary": "cs.AI"
+ },
+ "38445": {
+  "title": "DES-JEPA: Learning a Shared Vocabulary for High-Dimensional Discrete Event Sequences",
+  "authors": [
+   "Hugo Math",
+   "Maximilian Forstenhäusler",
+   "Christos Anagnostopoulos"
+  ],
+  "n_authors": 3,
+  "primary": "cs.AI"
+ },
+ "38485": {
+  "title": "Nongravitational Motion of 3I/ATLAS Far from the Sun: Robust Detection, Weak Constraints on the Activity Law",
+  "authors": [
+   "Małgorzata Królikowska",
+   "Federico Spada",
+   "Luke Dones"
+  ],
+  "n_authors": 3,
+  "primary": "astro-ph.EP"
+ },
+ "38490": {
+  "title": "The Influence of Hubble Expansion on the Future Merger of the Milky Way and Andromeda",
+  "authors": [
+   "Yufan Zhou",
+   "Tianchi Zhang",
+   "Shihong Liao"
+  ],
+  "n_authors": 6,
+  "primary": "astro-ph.GA"
+ },
+ "38496": {
+  "title": "Accelerating Nonlinear MPC by Behavior Cloning with Separated Timescales: Application to Nuclear Reactor Load-Following",
+  "authors": [
+   "Perceval Beja-Battais",
+   "Alain Grosset{ê}te",
+   "Nicolas Vayatis"
+  ],
+  "n_authors": 3,
+  "primary": "cs.AI"
+ },
+ "38503": {
+  "title": "Coupled evolution of Earth's H2-rich proto-atmosphere and oxidized magma ocean: Efficient H2O production through dissolved H2 transport and atmospheric buffering of the magma ocean redox state",
+  "authors": [
+   "Tatsuya Yoshida",
+   "Kirara Arima",
+   "Naoki Terada"
+  ],
+  "n_authors": 5,
+  "primary": "astro-ph.EP"
+ },
+ "38526": {
+  "title": "Value Probes: Learned Value Functions for Beam-Search Red Teaming",
+  "authors": [
+   "Jonathan F. Jao",
+   "Andrew Kyle Lampinen"
+  ],
+  "n_authors": 2,
+  "primary": "cs.AI"
+ },
+ "38532": {
+  "title": "From Leniency to Suspicion: How an Open Post-Training Recipe Changes Whom LLM Fact-Checkers Believe",
+  "authors": [
+   "Nouar AlDahoul",
+   "Yasir Zaki"
+  ],
+  "n_authors": 2,
+  "primary": "cs.AI"
+ },
+ "38540": {
+  "title": "Understanding the origin of silver in metal-poor stars based on the non-local thermodynamic equilibrium analysis of Ag I lines",
+  "authors": [
+   "Lyudmila Mashonkina",
+   "Tatyana Sitnova",
+   "Svetlana A. Yakovleva"
+  ],
+  "n_authors": 4,
+  "primary": "astro-ph.SR"
+ },
+ "38544": {
+  "title": "An Alignment Benchmark for Enterprise Agents on Era by Eon",
+  "authors": [
+   "Hai Sadon",
+   "Benjamin Gruenbaum",
+   "Doron Porat"
+  ],
+  "n_authors": 7,
+  "primary": "cs.AI"
+ },
+ "38551": {
+  "title": "PT$^3$: Prototype-Guided Self-Supervised Pretraining for Generalizable mmWave Human Point Cloud Representation",
+  "authors": [
+   "Ziyang Liu",
+   "Kieren Yu",
+   "Xiao Yang"
+  ],
+  "n_authors": 5,
+  "primary": "cs.AI"
+ },
+ "38566": {
+  "title": "Co-Evolving Policy and Rubric via Capability Awareness for Open-Ended Generation",
+  "authors": [
+   "Chengsheng Zhang",
+   "Wenshen Xu",
+   "Yuchuan Wu"
+  ],
+  "n_authors": 9,
+  "primary": "cs.AI"
+ },
+ "38568": {
+  "title": "A-RSI: Adaptive Task Refresh for Zero-Data Multimodal Self-Improvement",
+  "authors": [
+   "Yu Liu",
+   "Youxing Li",
+   "Yuedong Tan"
+  ],
+  "n_authors": 20,
+  "primary": "cs.AI"
+ },
+ "38573": {
+  "title": "CALM: Conflict-Aware Lifecycle Memory Governance for Long-Horizon Language Agents",
+  "authors": [
+   "Chang Li",
+   "Xianhao Ou",
+   "Xinyan Ma"
+  ],
+  "n_authors": 10,
+  "primary": "cs.AI"
+ },
+ "38589": {
+  "title": "GRAVITY-RESOLVE: A comprehensive image reconstruction tool for Galactic Center observations with GRAVITY",
+  "authors": [
+   "K. Abd El Dayem",
+   "N. Aimar",
+   "P. Amaro-Seoane"
+  ],
+  "n_authors": 86,
+  "primary": "astro-ph.GA"
+ },
+ "38601": {
+  "title": "Atmospheric Parameter Determination of RR Lyrae Stars With Mephisto Multi-band Photometry",
+  "authors": [
+   "Xingzhu Zou",
+   "Maosheng Xiang",
+   "Tanda Li"
+  ],
+  "n_authors": 21,
+  "primary": "astro-ph.SR"
+ },
+ "38607": {
+  "title": "The nature of the Norma arm as a bar-driven star-forming shock front",
+  "authors": [
+   "Hillary Davis",
+   "Joss Bland-Hawthorn",
+   "Thor Tepper-Garcia"
+  ],
+  "n_authors": 5,
+  "primary": "astro-ph.GA"
+ },
+ "38620": {
+  "title": "Think Before You Act: Decision Gate for LLM Agents",
+  "authors": [
+   "Iftach Shoham",
+   "Yuval David",
+   "Offer Akrabi"
+  ],
+  "n_authors": 8,
+  "primary": "cs.AI"
+ },
+ "38631": {
+  "title": "Right Numbers, Wrong Questions: Evaluating LLMs on Underspecified Financial Queries",
+  "authors": [
+   "Radha Yadav",
+   "Prasanna Devadiga",
+   "Peeyush Mishra"
+  ],
+  "n_authors": 4,
+  "primary": "cs.AI"
+ },
+ "38633": {
+  "title": "Kinematic methods of spiral nature identification: limitations and applicability",
+  "authors": [
+   "Valeria S. Kostiuk",
+   "V. D. Zozulia",
+   "A. A. Marchuk"
+  ],
+  "n_authors": 6,
+  "primary": "astro-ph.GA"
+ },
+ "38634": {
+  "title": "\"Close enough?\" An investigation into multiplication errors in LLMs",
+  "authors": [
+   "William Bolton",
+   "Bezawit Tilaye",
+   "Huw Day"
+  ],
+  "n_authors": 3,
+  "primary": "cs.AI"
+ },
+ "38636": {
+  "title": "Curriculum-Based Deep Reinforcement Learning for Robust Autonomous Rocket Landing under Atmospheric Uncertainty",
+  "authors": [
+   "Atin Chowdhury",
+   "Piyush Joshi"
+  ],
+  "n_authors": 2,
+  "primary": "cs.AI"
+ },
+ "38649": {
+  "title": "J060242.22+332452.7: hierarchical triple system with inner eclipsing contact binary",
+  "authors": [
+   "Mikhail Kovalev"
+  ],
+  "n_authors": 1,
+  "primary": "astro-ph.SR"
+ },
+ "38652": {
+  "title": "Episodic Plasma Flows and Coronal Brightenings in an Arch Filament System Observed with SUNRISE III",
+  "authors": [
+   "Sergio Javier González Manrique",
+   "Juan Carlos Trelles Arjona",
+   "Christoph Kuckein"
+  ],
+  "n_authors": 46,
+  "primary": "astro-ph.SR"
+ },
+ "38654": {
+  "title": "Chemodynamical Study and Evidence for Hot Compact Companions to Blue Straggler Stars in Berkeley 31",
+  "authors": [
+   "Deniz Cennet Çınar",
+   "D. Bisht",
+   "Ing-Guey Jiang"
+  ],
+  "n_authors": 5,
+  "primary": "astro-ph.GA"
+ },
+ "38673": {
+  "title": "Black Hole Spin Evolution in Magnetized Accretion Flows",
+  "authors": [
+   "Danat Issa",
+   "Ore Gottlieb",
+   "Jonatan Jacquemin-Ide"
+  ],
+  "n_authors": 4,
+  "primary": "astro-ph.HE"
+ },
+ "38681": {
+  "title": "Weaken to Strengthen: Weakening-Induced On-Policy Self-Distillation for Large Reasoning Models",
+  "authors": [
+   "Yecheng Wu",
+   "Song Han",
+   "Han Cai"
+  ],
+  "n_authors": 3,
+  "primary": "cs.AI"
+ },
+ "38684": {
+  "title": "Testing Extended Exponential Infrared Teleparallel Gravity with CMB, DESI, and PantheonPlus",
+  "authors": [
+   "Mahmoud Hashim",
+   "Jackson Levi Said",
+   "Waleed El Hanafy"
+  ],
+  "n_authors": 4,
+  "primary": "astro-ph.CO"
+ },
+ "38685": {
+  "title": "Infrared spectroscopy of the longest-period Galactic Mira variables from Palomar Gattini-IR: Identification of a candidate thermally pulsing Super-Asymptotic Giant Branch star",
+  "authors": [
+   "Ming To Suen",
+   "Kishalay De",
+   "Sam Rose"
+  ],
+  "n_authors": 16,
+  "primary": "astro-ph.SR"
+ },
+ "38687": {
+  "title": "Deogen: Automatic Benchmark Generation for Reasoning over Policies",
+  "authors": [
+   "Sam Kouteili",
+   "William Liang",
+   "Keeran Murray"
+  ],
+  "n_authors": 7,
+  "primary": "cs.AI"
+ },
+ "38691": {
+  "title": "Beyond fabrication: Misattributed numbers in papers written by AI research agents",
+  "authors": [
+   "Mosab Alfaqeeh",
+   "Omar Hourani",
+   "Muath Hourani"
+  ],
+  "n_authors": 4,
+  "primary": "cs.AI"
+ },
+ "38693": {
+  "title": "2026 ED138: A Large Trans-Neptunian Object in Early Rubin Observatory Data, and How Many More May Remain",
+  "authors": [
+   "Matthew J. Holman",
+   "Mario Jurić",
+   "Kevin J. Napier"
+  ],
+  "n_authors": 22,
+  "primary": "astro-ph.EP"
+ },
+ "38699": {
+  "title": "On The Scaling Relations Between Black Holes And The Galaxy/Bulge Mass And Their Connections With The Black Hole Occupation Fraction",
+  "authors": [
+   "Emanuele Contini",
+   "J. K. Jang",
+   "Jinsu Rhee"
+  ],
+  "n_authors": 5,
+  "primary": "astro-ph.GA"
+ },
+ "38700": {
+  "title": "Shock detection in meshless finite mass hydrodynamic schemes",
+  "authors": [
+   "Ludwig M. Böss",
+   "Frederik Groth",
+   "Klaus Dolag"
+  ],
+  "n_authors": 4,
+  "primary": "astro-ph.IM"
+ },
+ "38728": {
+  "title": "From Grind to Grasp",
+  "authors": [
+   "Peter Sunehag"
+  ],
+  "n_authors": 1,
+  "primary": "cs.AI"
+ },
+ "38733": {
+  "title": "Towards constraining cosmology with HI--galaxy cross-correlations from MeerKLASS",
+  "authors": [
+   "G. Autieri",
+   "M. Spinelli",
+   "Z. Chen"
+  ],
+  "n_authors": 17,
+  "primary": "astro-ph.CO"
+ },
+ "38735": {
+  "title": "Probing the local primordial non-Gaussianity with clustering of FRB dispersion measure and galaxies",
+  "authors": [
+   "Indranil Das",
+   "Gilbert Holder"
+  ],
+  "n_authors": 2,
+  "primary": "astro-ph.CO"
+ },
+ "38755": {
+  "title": "Leaving, Staying, or Living There? Duration Commonsense Reasoning with Human-LLM Co-annotations",
+  "authors": [
+   "Chenyang Yu",
+   "Zhaomin Xiao",
+   "Yan Huang"
+  ],
+  "n_authors": 4,
+  "primary": "cs.AI"
+ },
+ "38764": {
+  "title": "lenscape: Fast, High-resolution $Δχ^2$ Maps of Microlensing Events",
+  "authors": [
+   "Michael Hippke"
+  ],
+  "n_authors": 1,
+  "primary": "astro-ph.IM"
+ },
+ "38767": {
+  "title": "The coupled evolution of nuclear star clusters and intermediate-mass black holes in a dwarf-galaxy merger",
+  "authors": [
+   "Christian Partmann",
+   "Rachel S. Somerville",
+   "Michaela Hirschmann"
+  ],
+  "n_authors": 5,
+  "primary": "astro-ph.GA"
+ },
+ "38779": {
+  "title": "ARRAKIHS: The observability of tidally stripped satellites in a Milky Way-like halo",
+  "authors": [
+   "Abram Pérez-Herrero",
+   "Y. Revaz",
+   "S. Roca-Fàbrega"
+  ],
+  "n_authors": 37,
+  "primary": "astro-ph.GA"
+ },
+ "38798": {
+  "title": "Rotation and outburst-like brightenings in ZZ Ceti stars observed by TESS",
+  "authors": [
+   "Zs. Bognár",
+   "Á. Sódor"
+  ],
+  "n_authors": 2,
+  "primary": "astro-ph.SR"
+ },
+ "38811": {
+  "title": "The extragalactic science of the KMOS VVVX-GalCen spectroscopic survey II: Discovery of a galaxy cluster at z = 0.089 behind the Galactic plane",
+  "authors": [
+   "E. O. Schmidt",
+   "C. Valotto",
+   "C. Villalon"
+  ],
+  "n_authors": 36,
+  "primary": "astro-ph.GA"
+ },
+ "38816": {
+  "title": "UnEZ: A Fully Unsupervised Self-Templating Neural Network for Redshift and Line Strength Estimation",
+  "authors": [
+   "Asha Abd",
+   "Karl Glazebrook",
+   "Colin Jacobs"
+  ],
+  "n_authors": 3,
+  "primary": "astro-ph.IM"
+ },
+ "38827": {
+  "title": "The Bochum Survey of the Southern Galactic Disk: IV. Multi-Band Photometry",
+  "authors": [
+   "Julia Blex",
+   "Dominik J. Bomans",
+   "Kerstin Weis"
+  ],
+  "n_authors": 10,
+  "primary": "astro-ph.SR"
+ },
+ "38836": {
+  "title": "Environmental Quenching of Satellite Galaxies out to z~0.4 with GAMA and DEVILS",
+  "authors": [
+   "Megan Oxland",
+   "Matías Bravo",
+   "Laura Parker"
+  ],
+  "n_authors": 5,
+  "primary": "astro-ph.GA"
+ },
+ "38848": {
+  "title": "SuperCrude EoS: A Simple, Analytical, and Reasonably Accurate Equation of State for Astrophysical Fluid Dynamics",
+  "authors": [
+   "Paul C. Duffell",
+   "Dillon Hasenour"
+  ],
+  "n_authors": 2,
+  "primary": "astro-ph.IM"
+ },
+ "38851": {
+  "title": "Learning to Reason from Reference Samples Alone: Reinforced Adversarial Learning for Modern LLM Post-Training",
+  "authors": [
+   "Albert Bou",
+   "Javier Valdes-Aleman",
+   "Jon M. Laurent"
+  ],
+  "n_authors": 7,
+  "primary": "cs.AI"
+ },
+ "38852": {
+  "title": "Reconciling Giant Impacts with the Radius Valley: The Role of Silicate-Hydrogen Miscibility for Sub-Neptunes",
+  "authors": [
+   "Eva Zlimen",
+   "Hilke E. Schlichting",
+   "James G. Rogers"
+  ],
+  "n_authors": 3,
+  "primary": "astro-ph.EP"
+ },
+ "38858": {
+  "title": "A morpho-kinematic view of the Necklace nebula",
+  "authors": [
+   "E. Santamaría",
+   "J. A. Toalá",
+   "L. Sabin"
+  ],
+  "n_authors": 5,
+  "primary": "astro-ph.SR"
+ },
+ "38861": {
+  "title": "Mg II Signatures of Frequency Dependent Wave Propagation in Magnetic Elements",
+  "authors": [
+   "Deborah Baker",
+   "David M. Long",
+   "Marco Stangalini"
+  ],
+  "n_authors": 7,
+  "primary": "astro-ph.SR"
+ },
+ "38867": {
+  "title": "Where You Inject Matters: The Trust Region Effect in LLM Agents",
+  "authors": [
+   "Chengquan Guo",
+   "Xiaodong Liu",
+   "Weiwei Yang"
+  ],
+  "n_authors": 10,
+  "primary": "cs.AI"
+ },
+ "38869": {
+  "title": "Auditable Belief Updates as a Missing Safety Layer for LLM-Powered Multi-Agent Systems",
+  "authors": [
+   "Zhuoyun Li",
+   "Boxuan Wang",
+   "Jinwei Hu"
+  ],
+  "n_authors": 5,
+  "primary": "cs.AI"
+ },
+ "38882": {
+  "title": "Aligning Autoresearch: Co-Improvement between Agents and Humans",
+  "authors": [
+   "Tianjian Li",
+   "Chuanyang Jin",
+   "Seungone Kim"
+  ],
+  "n_authors": 13,
+  "primary": "cs.AI"
+ },
+ "38886": {
+  "title": "Odds Estimation for Supermassive Black Hole Binaries in Local Core Galaxies",
+  "authors": [
+   "C. J. Harris",
+   "Kayhan Gültekin"
+  ],
+  "n_authors": 2,
+  "primary": "astro-ph.GA"
+ },
+ "38923": {
+  "title": "Detailed chemo-dynamical characterization of four elusive Milky Way star clusters",
+  "authors": [
+   "D. A. Alvarez Garay",
+   "E. Ceccarelli",
+   "D. Massari"
+  ],
+  "n_authors": 20,
+  "primary": "astro-ph.GA"
+ },
+ "38924": {
+  "title": "TreasuryQA Bench: Can AI Agents Work an Archive of Scanned Financial Records?",
+  "authors": [
+   "Ritiz Tambi",
+   "Sahar Shayegan",
+   "Joshua Meyer"
+  ],
+  "n_authors": 8,
+  "primary": "cs.AI"
+ },
+ "38934": {
+  "title": "3-Methoxy-1-propanol Rotational Spectroscopy and Radio Astronomical Search toward NGC 6334I",
+  "authors": [
+   "D. Archie Stewart",
+   "Laurent Margulès",
+   "Roman A. Motiyenko"
+  ],
+  "n_authors": 4,
+  "primary": "astro-ph.GA"
+ },
+ "38960": {
+  "title": "Efficient Agentic Audio-Visual Question Answering through Toolset Pruning and Modality Consolidation",
+  "authors": [
+   "Yi Wang",
+   "Tianzi Wang",
+   "Peter Bell"
+  ],
+  "n_authors": 3,
+  "primary": "cs.AI"
+ },
+ "38973": {
+  "title": "Running cosmological constant in light of recent CMB-BAO data",
+  "authors": [
+   "A. Racioppi",
+   "M. Vijar"
+  ],
+  "n_authors": 2,
+  "primary": "astro-ph.CO"
+ },
+ "38975": {
+  "title": "Dungeons & Dragons Encounter Analysis with Semi-Random Simulation in Foundry VTT",
+  "authors": [
+   "ravyn Hardcastle",
+   "Matthew Guzdial"
+  ],
+  "n_authors": 2,
+  "primary": "cs.AI"
+ },
+ "38978": {
+  "title": "Flow-based neural networks for scalable high resolution imaging of VLBI observations",
+  "authors": [
+   "Lev Kats",
+   "Alexey Goldin",
+   "Andrey S. Andrianov"
+  ],
+  "n_authors": 3,
+  "primary": "astro-ph.IM"
+ },
+ "38980": {
+  "title": "Context Compaction for World Models",
+  "authors": [
+   "Hayder Tirmazi"
+  ],
+  "n_authors": 1,
+  "primary": "cs.AI"
+ },
+ "38987": {
+  "title": "Syntactic Segmentation and Collage Generation for Videogame Levels with Perceptual Distance",
+  "authors": [
+   "Ross Mawhorter",
+   "Matthew Guzdial"
+  ],
+  "n_authors": 2,
+  "primary": "cs.AI"
+ },
+ "39003": {
+  "title": "Agentic AI Reasoning and Learned Sampling for Task-Aware Projection Selection in Sparse-View CT: Predicting Hemodynamics",
+  "authors": [
+   "Mahmoud Elhadidy",
+   "Roshan M. D'Souza",
+   "Amirhossein Arzani"
+  ],
+  "n_authors": 3,
+  "primary": "cs.AI"
+ },
+ "39007": {
+  "title": "Formal Specifications with Data-Driven Signal Analysis",
+  "authors": [
+   "Roderick Bloem",
+   "Benedikt Maderbacher",
+   "Cristinel Mateis"
+  ],
+  "n_authors": 6,
+  "primary": "cs.AI"
+ },
+ "39045": {
+  "title": "When Should AI Decide, Defer, and Deviate? Responsible Automation for Deceased Donor Kidney Allocation",
+  "authors": [
+   "Madeleine Pollack",
+   "Thomas Daillak",
+   "Mehmet Toner"
+  ],
+  "n_authors": 6,
+  "primary": "cs.AI"
+ },
+ "39070": {
+  "title": "When the Same Prompt Gives Different Answers (and the Same Answer Isn't Always Right): A Taxonomy of Failure Mechanisms, Testing, and Mitigation Strategies for LLM-Assisted Evidence Synthesis Read-and-Evaluate Tasks",
+  "authors": [
+   "Carole Lunny",
+   "Ian Goodman",
+   "Stefano Berrone"
+  ],
+  "n_authors": 15,
+  "primary": "cs.AI"
+ },
+ "39073": {
+  "title": "Certified Access: Test-Time Compute on Conservative Physics-Structured AI Memory",
+  "authors": [
+   "Pratik Jawahar",
+   "Riccardo Maggioni",
+   "Jonas Petersen"
+  ],
+  "n_authors": 8,
+  "primary": "cs.AI"
+ },
+ "39089": {
+  "title": "Simultaneous Real-Color Time-Domain Survey of the Coma Field with the Multi-channel Photometric Survey Telescope (Mephisto)",
+  "authors": [
+   "Yu Pan",
+   "Yuan-Pei Yang",
+   "Ye-Hao Cheng"
+  ],
+  "n_authors": 28,
+  "primary": "astro-ph.HE"
+ },
+ "39094": {
+  "title": "The Korean Space Telescope (KST): A Dedicated Space Observatory for the Dark Universe",
+  "authors": [
+   "M. James Jee",
+   "Ho Seong Hwang",
+   "Dongwook Lim"
+  ],
+  "n_authors": 17,
+  "primary": "astro-ph.IM"
+ },
+ "39118": {
+  "title": "A Low-Dimensional Chemical Representation of High-Resolution Stellar Disk Spectra: Residual Abundance Signatures",
+  "authors": [
+   "Sarah E. Aquilina",
+   "Melissa K. Ness",
+   "Sven Buder"
+  ],
+  "n_authors": 3,
+  "primary": "astro-ph.SR"
+ },
+ "39130": {
+  "title": "Harmonic brightness oscillations point to magnetar giant flares in rare short gamma-ray bursts",
+  "authors": [
+   "Run-Chao Chen",
+   "Ore Gottlieb",
+   "Bin-Bin Zhang"
+  ],
+  "n_authors": 8,
+  "primary": "astro-ph.HE"
+ },
+ "39182": {
+  "title": "Reasoning or Pattern Exploitation? Mechanistic Insights from RL-Trained Language Models",
+  "authors": [
+   "Aishik Nagar",
+   "Cheston Tan"
+  ],
+  "n_authors": 2,
+  "primary": "cs.AI"
+ },
+ "39193": {
+  "title": "Goal-Aware Dynamic Multi-Agent Collaboration for Long-Horizon Tasks",
+  "authors": [
+   "Xu Shen",
+   "Lingyong Yan",
+   "Shuaiqiang Wang"
+  ],
+  "n_authors": 7,
+  "primary": "cs.AI"
+ },
+ "39200": {
+  "title": "XRISM/Resolve Study of Large Scale Properties in Tycho's Supernova Remnant",
+  "authors": [
+   "Tyler E. Hanover",
+   "Mark D. Leising"
+  ],
+  "n_authors": 2,
+  "primary": "astro-ph.HE"
+ },
+ "39230": {
+  "title": "Beyond LLM Wrappers: Context Engineering and the Three-Engine Architecture for Reliable Financial AI",
+  "authors": [
+   "Pradeep Kumar GS",
+   "Ravi Tanniru"
+  ],
+  "n_authors": 2,
+  "primary": "cs.AI"
+ },
+ "39233": {
+  "title": "Update on the Orbital Motion of Encke's Periodic Comet: Nongravitational Deceleration Gradually Gaining",
+  "authors": [
+   "Zdenek Sekanina"
+  ],
+  "n_authors": 1,
+  "primary": "astro-ph.EP"
+ },
+ "39240": {
+  "title": "A universal relation predicts the observed reversal of a supernova chirp",
+  "authors": [
+   "Joseph R. Farah",
+   "Logan J. Prust",
+   "Hang Yu"
+  ],
+  "n_authors": 3,
+  "primary": "astro-ph.HE"
+ },
+ "39247": {
+  "title": "SocialArena: Evaluating Social Intelligence in Large Language Models",
+  "authors": [
+   "Zongqi Wang",
+   "Rui Wang",
+   "Yuchuan Wu"
+  ],
+  "n_authors": 10,
+  "primary": "cs.AI"
+ },
+ "39251": {
+  "title": "Where to Learn and How Far to Roll Out: Efficient Adaptive Training for GUI Agents",
+  "authors": [
+   "Yuxiang Chai",
+   "Quyu Kong",
+   "Panrong Tong"
+  ],
+  "n_authors": 5,
+  "primary": "cs.AI"
+ },
+ "39253": {
+  "title": "Insights into the Kinematic Evolution of Filament-Induced Jets: Coupling of Interchange and Flare Reconnection",
+  "authors": [
+   "Zehao Tang",
+   "Xiaoli Yan",
+   "Zhike Xue"
+  ],
+  "n_authors": 6,
+  "primary": "astro-ph.SR"
+ },
+ "39264": {
+  "title": "Online Dense Reinforcement Learning with Planning-Grounding Agent for UI Navigation on Live IOS Apps",
+  "authors": [
+   "Peitong Duan",
+   "Khashayar Gatmiry",
+   "Jeffrey Nichols"
+  ],
+  "n_authors": 5,
+  "primary": "cs.AI"
+ },
+ "39275": {
+  "title": "LLM-Assisted Optimization for Simulation-Based Redesign",
+  "authors": [
+   "Chan-Eui Song",
+   "Jeremy J. Michalek",
+   "Christopher McComb"
+  ],
+  "n_authors": 3,
+  "primary": "cs.AI"
+ },
+ "39276": {
+  "title": "MemSteer: Turning User Histories into Supervision for Agent Memory Optimization",
+  "authors": [
+   "Jie Huang",
+   "Cuiling Lan",
+   "Qize Yu"
+  ],
+  "n_authors": 5,
+  "primary": "cs.AI"
+ },
+ "39282": {
+  "title": "What Does \"Now\" Mean to Your Computer-Use Agent? Stale Screenshots, Page Loads, and Which Check to Run Before a Click",
+  "authors": [
+   "Vasundra Srinivasan"
+  ],
+  "n_authors": 1,
+  "primary": "cs.AI"
+ },
+ "39302": {
+  "title": "Proving and Improving the Platonic Representation Hypothesis with JEPAs",
+  "authors": [
+   "Randall Balestriero",
+   "Yann LeCun"
+  ],
+  "n_authors": 2,
+  "primary": "cs.AI"
+ },
+ "39332": {
+  "title": "Tabular Foundation Models Dramatically Outperform Bespoke Photometric Redshift Estimators",
+  "authors": [
+   "Biprateep Dey",
+   "Joshua S. Speagle"
+  ],
+  "n_authors": 2,
+  "primary": "astro-ph.IM"
+ },
+ "39353": {
+  "title": "CoToan: Executable Rules and a Representation Contract for Reproducible Game AI Evaluation",
+  "authors": [
+   "Ha-Thanh Nguyen"
+  ],
+  "n_authors": 1,
+  "primary": "cs.AI"
+ },
+ "39358": {
+  "title": "Before the Next Rollout: Diagnosing Skill Utility Shifts from Policy Updates",
+  "authors": [
+   "Yifan Wang",
+   "Zhenyi Gai",
+   "Yiwen Zhao"
+  ],
+  "n_authors": 8,
+  "primary": "cs.AI"
+ },
+ "39377": {
+  "title": "AgentDecept: Benchmarking Deceptive Behavior in Tool-Using LLM Agents under Pressure",
+  "authors": [
+   "Yehan Zhang",
+   "Qianqi Yan",
+   "Hang Yin"
+  ],
+  "n_authors": 8,
+  "primary": "cs.AI"
+ },
+ "39384": {
+  "title": "The Disk Awakens: IXPE's Sequel Observation of GS 1354-64 Suggests Changing-Look Behavior in the Steep-Power-Law State",
+  "authors": [
+   "Swati Ravi",
+   "James F. Steiner",
+   "Megan Masterson"
+  ],
+  "n_authors": 23,
+  "primary": "astro-ph.HE"
+ },
+ "39390": {
+  "title": "The origin of UV emission in extremely low-mass satellite galaxies: Insights from Leo T",
+  "authors": [
+   "S Amrutha",
+   "Mousumi Das",
+   "Daniel Vaz"
+  ],
+  "n_authors": 4,
+  "primary": "astro-ph.GA"
+ },
+ "39410": {
+  "title": "Retaining Repair Hypotheses for Cost-Aware Execution",
+  "authors": [
+   "Jae Hun Hwang",
+   "Hong-In Won"
+  ],
+  "n_authors": 2,
+  "primary": "cs.AI"
+ },
+ "39431": {
+  "title": "Probing Multi-formation Channels of Dark Matter-Deficient Galaxies in a Simulated Universe",
+  "authors": [
+   "Sanghyeon Han",
+   "Ho Seong Hwang",
+   "Jaehyun Lee"
+  ],
+  "n_authors": 3,
+  "primary": "astro-ph.GA"
+ },
+ "39435": {
+  "title": "Verifiable LLM-Guided Focal SMT Solving for Quantified Arrays",
+  "authors": [
+   "Kunhang Lv",
+   "Rui Han",
+   "Fuqi Jia"
+  ],
+  "n_authors": 6,
+  "primary": "cs.AI"
+ },
+ "39438": {
+  "title": "ATLAS-Bench: An Agentic Tool-Use Benchmark for Local Area Search",
+  "authors": [
+   "Keyun Zhang",
+   "Dapeng Yin",
+   "Fanfu Wang"
+  ],
+  "n_authors": 8,
+  "primary": "cs.AI"
+ },
+ "39439": {
+  "title": "Timbre: Reliability-aware harmonic consensus for label-free multimodal test-time rexinforcement learning",
+  "authors": [
+   "Haotian Lyu",
+   "Haoyu Wang",
+   "Ru Wang"
+  ],
+  "n_authors": 7,
+  "primary": "cs.AI"
+ },
+ "39449": {
+  "title": "Cosmic birefringence tomography with radio galaxies I: Testing birefringence solutions to the CMB-BAO tension",
+  "authors": [
+   "Toshiya Namikawa",
+   "Fumihiro Naokawa",
+   "Richard Battye"
+  ],
+  "n_authors": 4,
+  "primary": "astro-ph.CO"
+ },
+ "39454": {
+  "title": "Kairos: Semantics-Aware Orchestration of Planning Engines across Classical, Numeric, Temporal and Hybrid PDDL",
+  "authors": [
+   "Francisco Martín Rico",
+   "Esther Aguado González",
+   "Francisco Miguel Moreno Olivo"
+  ],
+  "n_authors": 6,
+  "primary": "cs.AI"
+ },
+ "39473": {
+  "title": "Cosmological axion-photon interactions with a nonminimal dark gauge sector",
+  "authors": [
+   "Hao Jiao",
+   "Dong-Won Jung",
+   "Nils A. Nilsson"
+  ],
+  "n_authors": 3,
+  "primary": "astro-ph.CO"
+ },
+ "39483": {
+  "title": "Does Federated Training Degrade Explainability? A Comparative Analysis of Grad-CAM Faithfulness in Centralized vs. Federated Deepfake Detection",
+  "authors": [
+   "Muhammad Uzair Shahid",
+   "Muhammad Zabil Mehboob"
+  ],
+  "n_authors": 2,
+  "primary": "cs.AI"
+ },
+ "39497": {
+  "title": "Does Scaling Toward AGI Depend on What System-1 Lets System-2 Execute?",
+  "authors": [
+   "Qi Wang",
+   "Yun Qu",
+   "Lizhou Cai"
+  ],
+  "n_authors": 13,
+  "primary": "cs.AI"
+ },
+ "39499": {
+  "title": "Integrated Feature Selection for classification and Representation Learning with Group-Lasso Siamese Networks",
+  "authors": [
+   "Nisargo Ranjan Pal",
+   "Pradeep Singh"
+  ],
+  "n_authors": 2,
+  "primary": "cs.AI"
+ },
+ "39500": {
+  "title": "What Breaks When Facts Become Stories? The Distortions Source-Agreement Metrics Miss When Models Retell Real Events",
+  "authors": [
+   "Kwangsuk Park",
+   "JiWoong Yang",
+   "Vaniushkina Kseniia"
+  ],
+  "n_authors": 3,
+  "primary": "cs.AI"
+ },
+ "39508": {
+  "title": "Compile Away Uncertainty: Self-Evolving Agent Skills via Programmatic Compilation",
+  "authors": [
+   "Chengyu Yang",
+   "Yunxiang Zheng",
+   "Zongzheng Li"
+  ],
+  "n_authors": 9,
+  "primary": "cs.AI"
+ },
+ "39512": {
+  "title": "DEG: Diffusion-Enhanced GFlowNet for Solving Vehicle Routing Problems",
+  "authors": [
+   "Ni Zhang",
+   "Zhiqin Zhang",
+   "Ling Pan"
+  ],
+  "n_authors": 5,
+  "primary": "cs.AI"
+ },
+ "39518": {
+  "title": "Category-Anchored Large Language Models for Next POI Recommendation",
+  "authors": [
+   "Lexi Bai",
+   "Xiaopeng Zeng",
+   "Xun Zhou"
+  ],
+  "n_authors": 5,
+  "primary": "cs.AI"
+ },
+ "39546": {
+  "title": "A deep learning approach to member identification and mass estimation in galaxy clusters",
+  "authors": [
+   "Zicheng Wang",
+   "Liping Fu",
+   "Wei Du"
+  ],
+  "n_authors": 12,
+  "primary": "astro-ph.CO"
+ },
+ "39554": {
+  "title": "Low-variance renoising for weak gravitational lensing shear estimation",
+  "authors": [
+   "Xiangchong Li"
+  ],
+  "n_authors": 1,
+  "primary": "astro-ph.CO"
+ },
+ "39559": {
+  "title": "Non-Zero Radius: The Missing Component of Neural Networks",
+  "authors": [
+   "Tiansi Dong",
+   "Mateja Jamnik",
+   "Pietro Liò"
+  ],
+  "n_authors": 3,
+  "primary": "cs.AI"
+ },
+ "39579": {
+  "title": "Cosmological constraints on extra radiation and early dark energy with lepton asymmetry and varying quark masses",
+  "authors": [
+   "Yo Toda"
+  ],
+  "n_authors": 1,
+  "primary": "astro-ph.CO"
+ },
+ "39581": {
+  "title": "Efficient GLS map-making and assessment of $1/f$ noise impact for future CMB satellite missions",
+  "authors": [
+   "Marta Monelli",
+   "Guillaume Patanchon",
+   "Avinash Anand"
+  ],
+  "n_authors": 3,
+  "primary": "astro-ph.CO"
+ },
+ "39587": {
+  "title": "The Pointing Error Due To Laser Propagation in Space Plasma for TianQin Gravitational Wave Detection",
+  "authors": [
+   "S. W. Zhou",
+   "W. Su",
+   "S. Y. Zhou"
+  ],
+  "n_authors": 5,
+  "primary": "astro-ph.SR"
+ },
+ "39603": {
+  "title": "The Peculiar Astrometric Behaviour and Radio Structure of the Quasar 1524-136 Revealed with Very Long Baseline Interferometry",
+  "authors": [
+   "Angelina Osetrova",
+   "Sándor Frey",
+   "Oleg Titov"
+  ],
+  "n_authors": 5,
+  "primary": "astro-ph.GA"
+ },
+ "39608": {
+  "title": "From Intent to Improvement: Agentic Dataset Search for Better Model Training",
+  "authors": [
+   "Qiaosheng Chen",
+   "Kaijia Huang",
+   "Fanqi Zhou"
+  ],
+  "n_authors": 4,
+  "primary": "cs.AI"
+ },
+ "39614": {
+  "title": "Emergence of the transformer architecture as the score of entropic laws of random measures",
+  "authors": [
+   "Giacomo Greco"
+  ],
+  "n_authors": 1,
+  "primary": "cs.AI"
+ },
+ "39620": {
+  "title": "Letting AI Formulate the Research Question: Autonomous Research Agents",
+  "authors": [
+   "Ko Fujimura"
+  ],
+  "n_authors": 1,
+  "primary": "cs.AI"
+ },
+ "39621": {
+  "title": "The Real Cost of Context: Predicting Compute Time and Energy Consumption in LLM Prefill and Decode Phases",
+  "authors": [
+   "Lars Krupp",
+   "Daniel Geißler",
+   "Francisco M. Calatrava-Nicolas"
+  ],
+  "n_authors": 6,
+  "primary": "cs.AI"
+ },
+ "39629": {
+  "title": "Hoag-type Galaxies: A Photometric Study of the Cores and Rings of Thirty Systems from the DESI Legacy Survey",
+  "authors": [
+   "Jingshuo Yang",
+   "Cheng Li"
+  ],
+  "n_authors": 2,
+  "primary": "astro-ph.GA"
+ },
+ "39635": {
+  "title": "Optical clock network tracks tidal variations of the gravity potential",
+  "authors": [
+   "Kilian Stahl",
+   "Ingo Nosske",
+   "Chetan Vishwakarma"
+  ],
+  "n_authors": 44,
+  "primary": "astro-ph.EP"
+ },
+ "39654": {
+  "title": "Detection of HNCOH+ in the interstellar medium",
+  "authors": [
+   "M. Rey-Montejo",
+   "I. Jimenez-Serra",
+   "M. Sanz-Novo"
+  ],
+  "n_authors": 15,
+  "primary": "astro-ph.GA"
+ },
+ "39656": {
+  "title": "Towards an Astronomical Use of New-Generation Geodetic Observations",
+  "authors": [
+   "Víctor Pérez-Díez"
+  ],
+  "n_authors": 1,
+  "primary": "astro-ph.IM"
+ },
+ "39683": {
+  "title": "Dust growth in the early Universe: insight from the NewCluster spin-off simulation",
+  "authors": [
+   "J. K. Jang",
+   "Yohan Dubois",
+   "Francisco Rodriguez Montero"
+  ],
+  "n_authors": 10,
+  "primary": "astro-ph.GA"
+ },
+ "39692": {
+  "title": "Feeding or Fleeing: The Impact of Enhanced Early Black Hole Growth on Circumgalactic Clumps at $z > 6$",
+  "authors": [
+   "Floor van Donkelaar",
+   "Lucas Tortora",
+   "Debora Sijacki"
+  ],
+  "n_authors": 3,
+  "primary": "astro-ph.GA"
+ },
+ "39714": {
+  "title": "MoLRSI: A Recursive Self-Improving AI agent for Molecular Discovery",
+  "authors": [
+   "Yikun Zhang",
+   "Xiwei Cheng",
+   "Mingze Yuan"
+  ],
+  "n_authors": 18,
+  "primary": "cs.AI"
+ },
+ "39720": {
+  "title": "Search for Cosmic Rays in GRANDProto300",
+  "authors": [
+   "Jolan Lavoisier",
+   "Aurélien Benoit-Lévy",
+   "Kumiko Kotera"
+  ],
+  "n_authors": 9,
+  "primary": "astro-ph.IM"
+ },
+ "39733": {
+  "title": "Bank-World: A Benchmark for Evaluating Agents on Banking Workflows",
+  "authors": [
+   "Daniel Rupawalla"
+  ],
+  "n_authors": 1,
+  "primary": "cs.AI"
+ },
+ "39735": {
+  "title": "From the Transformer to a Formal Semantics of Coordinated Transformations",
+  "authors": [
+   "Marco Giunti",
+   "Fabrizia Giulia Garavaglia"
+  ],
+  "n_authors": 2,
+  "primary": "cs.AI"
+ },
+ "39740": {
+  "title": "The Radio Neutrino Observatory in Greenland (RNO-G) - System Design and Instrumentation",
+  "authors": [
+   "Nils Heyer for the RNO-G Collaboration",
+   "Steven Barwick",
+   "AJ Nielsen"
+  ],
+  "n_authors": 3,
+  "primary": "astro-ph.IM"
+ },
+ "39744": {
+  "title": "PAPERBENCHX: Can AI Reproduce Science Across Disciplines?",
+  "authors": [
+   "Ruoyu Wu",
+   "Zengji Tu",
+   "Aolong Sun"
+  ],
+  "n_authors": 17,
+  "primary": "cs.AI"
+ },
+ "39752": {
+  "title": "Dwarf Galaxy Reticulum II's MeerKAT L-Band Observation: Constraining WIMP Dark Matter",
+  "authors": [
+   "Phillip Badenhorst",
+   "Michael Sarkis",
+   "Yin-Zhe Ma"
+  ],
+  "n_authors": 8,
+  "primary": "astro-ph.CO"
+ },
+ "39781": {
+  "title": "Finding Is Not Returning, Returning Is Not Reconstructing: A Multi-Dimensional Evaluation of Agent Social Re-entry",
+  "authors": [
+   "Sheng Wan",
+   "Cong Ma",
+   "Sichen Dong"
+  ],
+  "n_authors": 7,
+  "primary": "cs.AI"
+ },
+ "39785": {
+  "title": "Robust statistical significance for Gravitational Wave inference",
+  "authors": [
+   "Alexandre Sébastien Göttel"
+  ],
+  "n_authors": 1,
+  "primary": "astro-ph.IM"
+ },
+ "39788": {
+  "title": "The stellar orbit distribution of 24 late-type galaxies observed by MUSE",
+  "authors": [
+   "Le Zhang",
+   "Ling Zhu",
+   "Jesús Falcon-Barroso"
+  ],
+  "n_authors": 3,
+  "primary": "astro-ph.GA"
+ },
+ "39790": {
+  "title": "Long-Term Agent Memory through Complementary Curation and Consolidation",
+  "authors": [
+   "Abhishek Gupta",
+   "Dongge Han",
+   "Daniel Madrigal Diaz"
+  ],
+  "n_authors": 7,
+  "primary": "cs.AI"
+ },
+ "39792": {
+  "title": "RAKI: High-Order Alternative Finite Differences for General Relativistic Magnetohydrodynamics",
+  "authors": [
+   "Rahime Matur",
+   "Beyhan Karakas",
+   "Ian Hawke"
+  ],
+  "n_authors": 4,
+  "primary": "astro-ph.HE"
+ },
+ "39795": {
+  "title": "The Role of Self-Concept In Language Models",
+  "authors": [
+   "Yijie Hao",
+   "Joyce C. Ho"
+  ],
+  "n_authors": 2,
+  "primary": "cs.AI"
+ },
+ "39801": {
+  "title": "The first mass peak of merging black holes from core binding energies and jet-driven explosions",
+  "authors": [
+   "Nikki Yat Ning Wang",
+   "Dmitry Shishkin",
+   "Noam Soker"
+  ],
+  "n_authors": 3,
+  "primary": "astro-ph.HE"
+ },
+ "39802": {
+  "title": "Revisiting Over-refusal in Safety-aligned Large Language Models: A Representation and Optimization Perspective",
+  "authors": [
+   "Chao Chen",
+   "Pengyang Shao",
+   "Wei Qin"
+  ],
+  "n_authors": 6,
+  "primary": "cs.AI"
+ },
+ "39813": {
+  "title": "EvoTeam: Multi-Agent Collaboration via Evolving Teams",
+  "authors": [
+   "Qinuo Cao",
+   "Xin He",
+   "Dianxuan Fu"
+  ],
+  "n_authors": 10,
+  "primary": "cs.AI"
+ },
+ "39825": {
+  "title": "AegisFlow: Training-Free Non-Myopic Path-Safe Guided Flow Matching",
+  "authors": [
+   "Kunpeng Liu",
+   "Boshi Zhang",
+   "Keyou You"
+  ],
+  "n_authors": 3,
+  "primary": "cs.AI"
+ },
+ "39862": {
+  "title": "Tidal disruption or plunge: the role of neutron star internal structure in black hole-neutron star mergers",
+  "authors": [
+   "Yatharth Chaurasiya",
+   "Ritam Mallick"
+  ],
+  "n_authors": 2,
+  "primary": "astro-ph.HE"
+ },
+ "39865": {
+  "title": "VERITAS Limits on Dark Matter Annihilation in the Galactic Center Halo",
+  "authors": [
+   "A. Archer",
+   "P. Bangale",
+   "J. T. Bartkoske"
+  ],
+  "n_authors": 61,
+  "primary": "astro-ph.HE"
+ },
+ "39866": {
+  "title": "Energy-Dependent Hard X-Ray QPP Modulation in M- and X-Class Solar Flares Observed by Aditya-L1/HEL1OS",
+  "authors": [
+   "Sachin Rajkapoor Kanaujiya",
+   "Ram Ajor Maurya",
+   "Valery M. Nakariakov"
+  ],
+  "n_authors": 3,
+  "primary": "astro-ph.SR"
+ },
+ "39884": {
+  "title": "KARMA: Training-Free Knowledge-Atomic Harness Evolution for Industrial Advertising Agents",
+  "authors": [
+   "Xinhua Miao",
+   "Yuanzhen Rong",
+   "Weiru Zhang"
+  ],
+  "n_authors": 4,
+  "primary": "cs.AI"
+ },
+ "39918": {
+  "title": "A MUSE and MeerKAT study of dynamics and star formation in HCG 16",
+  "authors": [
+   "Ixaka Labadie-García",
+   "Enrique Pérez",
+   "Julián Garrido"
+  ],
+  "n_authors": 5,
+  "primary": "astro-ph.GA"
+ },
+ "39925": {
+  "title": "Preparation of a celestial field for precise VLBI observations of the JUICE spacecraft: a test case of the Venus flyby",
+  "authors": [
+   "Krisztina Perger",
+   "Sándor Frey",
+   "Giuseppe Cimò"
+  ],
+  "n_authors": 14,
+  "primary": "astro-ph.IM"
+ },
+ "39963": {
+  "title": "Recent advances in numerical modeling of solar inertial modes",
+  "authors": [
+   "Yuto Bekki",
+   "Laurent Gizon"
+  ],
+  "n_authors": 2,
+  "primary": "astro-ph.SR"
+ },
+ "39977": {
+  "title": "Mapping cluster angular momentum with the rotational kinetic Sunyaev-Zel'dovich effect",
+  "authors": [
+   "Jack Y. L. Kwok",
+   "Bernardita Ried Guachalla",
+   "William R. Coulton"
+  ],
+  "n_authors": 5,
+  "primary": "astro-ph.CO"
+ },
+ "39980": {
+  "title": "Benchmarking Quantum Neural Networks Developed for MBHB Coalescence in the Context of LISA Space Mission",
+  "authors": [
+   "Maria-Catalina Isfan",
+   "Laurentiu-Ioan Caramete",
+   "Ana Caramete"
+  ],
+  "n_authors": 3,
+  "primary": "astro-ph.CO"
+ },
+ "39987": {
+  "title": "Channelled versus Isotropic Accretion of Galaxy Groups onto Clusters: Kinematics, Spin Alignment, and Assembly Bias",
+  "authors": [
+   "Ankit Singh",
+   "Frazer Pearce",
+   "Meghan Gray"
+  ],
+  "n_authors": 7,
+  "primary": "astro-ph.GA"
+ },
+ "39988": {
+  "title": "Analysis of Multi-Wavelength Data for 30 Galactic Emission-Line Stars with Dusty Envelopes",
+  "authors": [
+   "A. Zh. Naurzbayeva",
+   "A. S. Miroshnichenko",
+   "N. Sh. Alimgazinova"
+  ],
+  "n_authors": 20,
+  "primary": "astro-ph.SR"
+ },
+ "40005": {
+  "title": "Efficient Learning of Mechanism Designs and Compositionality",
+  "authors": [
+   "João Pedro Gandarela",
+   "Thiago Rios",
+   "Stefan Menzel"
+  ],
+  "n_authors": 4,
+  "primary": "cs.AI"
+ },
+ "40006": {
+  "title": "Human--AI Interactions as First-Class Data: A Formal Interaction Model and Runtime for Explainable AI Collaboration",
+  "authors": [
+   "Michela Taufer",
+   "Kin Ng",
+   "Ian Lumsden"
+  ],
+  "n_authors": 9,
+  "primary": "cs.AI"
+ },
+ "40008": {
+  "title": "Identifying narrow-band mutual coupling resonances in SKA-low stations using frequency-independent current basis functions",
+  "authors": [
+   "John Cumner",
+   "Oscar S. D. O'Hara",
+   "Quentin Gueuning"
+  ],
+  "n_authors": 6,
+  "primary": "astro-ph.IM"
+ },
+ "40014": {
+  "title": "Four-hundred Very Metal-poor Stars Studied with LAMOST and Subaru. IV. Heavy Element Enhanced Stars",
+  "authors": [
+   "Yangming Lin",
+   "Haining Li",
+   "Wako Aoki"
+  ],
+  "n_authors": 10,
+  "primary": "astro-ph.SR"
+ },
+ "40015": {
+  "title": "Nine new eclipsing accreting ultracompact white dwarf binaries from the Zwicky Transient Facility",
+  "authors": [
+   "J. van Roestel",
+   "M. J. Green",
+   "T. L. S. Wong"
+  ],
+  "n_authors": 22,
+  "primary": "astro-ph.SR"
+ },
+ "40020": {
+  "title": "Phenomenological implications of cosmic (super)strings with time-varying tension",
+  "authors": [
+   "Anastasios Avgoustidis",
+   "Edmund J. Copeland",
+   "Adam Moss"
+  ],
+  "n_authors": 6,
+  "primary": "astro-ph.CO"
+ },
+ "40030": {
+  "title": "Cheap Retrieval and Observation Credit Assignment from One Quantity: The Value of Information",
+  "authors": [
+   "Daniel Strauss",
+   "Nikolaos Sotirakis",
+   "Zhenshan Bing"
+  ],
+  "n_authors": 4,
+  "primary": "cs.AI"
+ },
+ "40036": {
+  "title": "Hybrid AI Patterns: Thirteen Ways to Couple Language Models with Rules, and How to Choose Among Them",
+  "authors": [
+   "Siegfried Handschuh",
+   "Götz-Henrik Wiegand",
+   "Lorena Raichle"
+  ],
+  "n_authors": 3,
+  "primary": "cs.AI"
+ },
+ "40045": {
+  "title": "SDSS-V LVM: Mapping of plasma temperatures in the Lagoon Nebula reveals the origin of long-standing chemical abundance discrepancies",
+  "authors": [
+   "Amrita Singh",
+   "Guillermo A. Blanc",
+   "Kathryn Kreckel"
+  ],
+  "n_authors": 21,
+  "primary": "astro-ph.GA"
+ },
+ "40049": {
+  "title": "Can the $\\sim 5$ kpc starburst ring in MW create eROSITA bubbles?",
+  "authors": [
+   "Mukesh Singh Bisht",
+   "Kartick C. Sarkar"
+  ],
+  "n_authors": 2,
+  "primary": "astro-ph.GA"
+ },
+ "40053": {
+  "title": "KM3-230213A: The Highest-Energy Cosmic Neutrino",
+  "authors": [
+   "Carla Distefano"
+  ],
+  "n_authors": 1,
+  "primary": "astro-ph.HE"
+ },
+ "40063": {
+  "title": "Extracting non-Gaussian information of line-intensity maps with weighted skew spectra",
+  "authors": [
+   "Eleonora Vanzan",
+   "Azadeh Moradinezhad Dizgah",
+   "Ely D. Kovetz"
+  ],
+  "n_authors": 3,
+  "primary": "astro-ph.CO"
+ },
+ "40064": {
+  "title": "At the EDGES of MADness: phenomenology of relic millicharged atomic dark matter",
+  "authors": [
+   "Eleonora Vanzan",
+   "Kimberly K. Boddy",
+   "Ely D. Kovetz"
+  ],
+  "n_authors": 3,
+  "primary": "astro-ph.CO"
+ },
+ "40071": {
+  "title": "Agentic process evidence",
+  "authors": [
+   "Yuval Kainan",
+   "Carmit Hershman"
+  ],
+  "n_authors": 2,
+  "primary": "cs.AI"
+ },
+ "40096": {
+  "title": "Reward-Adaptive Co-Evolution of Policy and Rubric",
+  "authors": [
+   "Yizhu Chen",
+   "Jianguang Jiang",
+   "Jiameng Huang"
+  ],
+  "n_authors": 8,
+  "primary": "cs.AI"
+ },
+ "40106": {
+  "title": "Seven Years of TESS Precovery Observations of the Dwarf-planet Candidate 2026 ED$_{138}$",
+  "authors": [
+   "Te Han",
+   "Jeroen Audenaert",
+   "Daniel Muthukrishna"
+  ],
+  "n_authors": 5,
+  "primary": "astro-ph.EP"
+ },
+ "40114": {
+  "title": "The dark surface of (163693) Atira and implications for inner-Earth asteroid origins",
+  "authors": [
+   "Bryce T. Bolin",
+   "Carl Ingebretsen",
+   "Robert Jedicke"
+  ],
+  "n_authors": 11,
+  "primary": "astro-ph.EP"
+ },
+ "40133": {
+  "title": "DynaRev: Benchmarking Web Agents under Dynamic Goal Revision",
+  "authors": [
+   "Shiqi Zhang",
+   "Guochen Zhou",
+   "Zesheng Wei"
+  ],
+  "n_authors": 5,
+  "primary": "cs.AI"
+ },
+ "40144": {
+  "title": "What kinds of strong star--black-hole encounters in AGN disks occur, and how often?",
+  "authors": [
+   "R. O'Shaughnessy",
+   "Z. Rosenberg",
+   "J. Nordhaus"
+  ],
+  "n_authors": 3,
+  "primary": "astro-ph.GA"
+ },
+ "40151": {
+  "title": "The generative paradox: the Anti-Prompt paradigm for human capability",
+  "authors": [
+   "Margarita Trifonov Vadim E. Levit"
+  ],
+  "n_authors": 1,
+  "primary": "cs.AI"
+ },
+ "40161": {
+  "title": "A Negotiation-Aware Hybrid LLM Framework for Intent Interpretation and Service Discovery",
+  "authors": [
+   "Wided Meflah",
+   "Hayet Brabra",
+   "Walid Gaaloul"
+  ],
+  "n_authors": 3,
+  "primary": "cs.AI"
+ },
+ "40184": {
+  "title": "Temporal regularization of petal modes in SCAO systems: The Soft-Limiter approach",
+  "authors": [
+   "Guido Agapito",
+   "Jueqi Lin",
+   "Carmelo Arcidiacono"
+  ],
+  "n_authors": 6,
+  "primary": "astro-ph.IM"
+ },
+ "40186": {
+  "title": "Locating and Closing Information Gaps in Multi-Agent Systems",
+  "authors": [
+   "Yaxin Gong",
+   "Chongming Gao",
+   "Gangyi Zhang"
+  ],
+  "n_authors": 10,
+  "primary": "cs.AI"
+ },
+ "40187": {
+  "title": "Model-Based Retrieval of Four Years of JWST/NIRCam Wavefronts",
+  "authors": [
+   "Shrishmoy Ray",
+   "Benjamin Pope",
+   "Louis Desdoigts"
+  ],
+  "n_authors": 11,
+  "primary": "astro-ph.IM"
+ },
+ "40192": {
+  "title": "Bridging Semantics and Structure: A Theoretically Grounded Framework for Link Prediction on TAGs",
+  "authors": [
+   "Chen Shao",
+   "Ruirui Wang",
+   "Tobias Kafer"
+  ],
+  "n_authors": 4,
+  "primary": "cs.AI"
+ },
+ "40205": {
+  "title": "Theoretical Consistency and Observational Constraints on Entropic Cosmology",
+  "authors": [
+   "Yunliang Ren",
+   "Xiaofeng Yang",
+   "Xuwei Zhang"
+  ],
+  "n_authors": 6,
+  "primary": "astro-ph.CO"
+ },
+ "40218": {
+  "title": "Celia: Catalog Embeddings Learned from cosmologIcal simulAtions",
+  "authors": [
+   "Xiaowen Zhang",
+   "Matthew Ho",
+   "Anshul Kumar"
+  ],
+  "n_authors": 6,
+  "primary": "astro-ph.GA"
+ },
+ "40219": {
+  "title": "A compact NH$_2$D source without NH$_3$ counterpart in the S187 high-mass star-forming region",
+  "authors": [
+   "E. A. Trofimova",
+   "I. I. Zinchenko",
+   "C. Henkel"
+  ],
+  "n_authors": 6,
+  "primary": "astro-ph.GA"
+ },
+ "40227": {
+  "title": "EpiAgent: Epistemic Self-Play for LLM Agents",
+  "authors": [
+   "Xuanfa Jin",
+   "Xinyu Cui",
+   "Zhijian Ma"
+  ],
+  "n_authors": 7,
+  "primary": "cs.AI"
+ },
+ "40242": {
+  "title": "From photons to neutrinos : Advancing multi-messenger modeling with Gammapy",
+  "authors": [
+   "Justin Albinet",
+   "Lea Heckmann",
+   "Matteo Cerruti"
+  ],
+  "n_authors": 4,
+  "primary": "astro-ph.HE"
+ },
+ "40246": {
+  "title": "EnvOS: Auditing Computer-Use Agents When the World Moves On : Phenomenon-Based Task Construction, Certification, and Evidence-Based Evaluation",
+  "authors": [
+   "Ankush Kadu",
+   "Athira Gopal",
+   "Niharika Singh"
+  ],
+  "n_authors": 5,
+  "primary": "cs.AI"
+ },
+ "40249": {
+  "title": "Reaction precedents extend retrosynthetic prediction beyond training coverage",
+  "authors": [
+   "Jiaxing Sun",
+   "Xuli Shen",
+   "Jiang Wu"
+  ],
+  "n_authors": 20,
+  "primary": "cs.AI"
+ },
+ "40250": {
+  "title": "Distributional Reward Calibration and Budget-Neutral Credit Assignment for Multimodal RLVR",
+  "authors": [
+   "Lang Chen",
+   "Zongxin Xu",
+   "Borui Wang"
+  ],
+  "n_authors": 5,
+  "primary": "cs.AI"
+ },
+ "40255": {
+  "title": "A Candidate Binary Microlensing Event in the 2018 Gamma-Ray Flare of 3C 279",
+  "authors": [
+   "Yihong Yang",
+   "Jianeng Zhou",
+   "Haibin Ren"
+  ],
+  "n_authors": 11,
+  "primary": "astro-ph.HE"
+ },
+ "40272": {
+  "title": "posterior-landscape: morphological feature finding in two-dimensional probability densities",
+  "authors": [
+   "Michele Mancarella",
+   "Viola De Renzis",
+   "Alessandro Agapito"
+  ],
+  "n_authors": 3,
+  "primary": "astro-ph.IM"
+ },
+ "40275": {
+  "title": "Going off the (momentum) grid: A simple implementation of noncold relics in linear Boltzmann solvers",
+  "authors": [
+   "Arad Nasiri",
+   "Murali Saravanan",
+   "Caio B. de S. Nascimento"
+  ],
+  "n_authors": 3,
+  "primary": "astro-ph.CO"
+ },
+ "40278": {
+  "title": "Neighborhood Elites: Quality-Diversity Search for Uncertainty Quantification in Question Answering",
+  "authors": [
+   "Mesut Ceylan",
+   "Arda Baris Basaran",
+   "Elgar Fleisch"
+  ],
+  "n_authors": 4,
+  "primary": "cs.AI"
+ },
+ "40300": {
+  "title": "Toward a Complete Interpretation of Global 21 cm Absorption Signals Using the Radio CMB",
+  "authors": [
+   "Hannah Fronenberg"
+  ],
+  "n_authors": 1,
+  "primary": "astro-ph.CO"
+ },
+ "40326": {
+  "title": "Polarization and Burst Properties of the Repeating FRB~20240209A in a Quiescent Elliptical Host",
+  "authors": [
+   "Yong-Kun Zhang",
+   "Yi Feng",
+   "Di Li"
+  ],
+  "n_authors": 7,
+  "primary": "astro-ph.HE"
+ },
+ "40330": {
+  "title": "Multistep and Multivariate Time Series Explainability with GradientSHAP: A Wind Power Case Study",
+  "authors": [
+   "Robbie Southam",
+   "Zhong Fan",
+   "Ke Li"
+  ],
+  "n_authors": 3,
+  "primary": "cs.AI"
+ },
+ "40332": {
+  "title": "Playing CHESS with stars II. Homogeneous analysis of high-resolution optical spectra for a sample of 135 giants in 14 bulge globular clusters",
+  "authors": [
+   "S. Özdemir",
+   "R. Smiljanic",
+   "J. E. Martínez Fernández"
+  ],
+  "n_authors": 6,
+  "primary": "astro-ph.GA"
+ },
+ "40341": {
+  "title": "Cosmological lensing as a jump process",
+  "authors": [
+   "Galymzhan Baltabay",
+   "Ville Vaskonen"
+  ],
+  "n_authors": 2,
+  "primary": "astro-ph.CO"
+ },
+ "40346": {
+  "title": "Six New Eclipsing AM CVn Binaries from the Zwicky Transient Facility",
+  "authors": [
+   "Aaron Householder",
+   "Kevin B. Burdge",
+   "Yapeng Zhang"
+  ],
+  "n_authors": 19,
+  "primary": "astro-ph.SR"
+ },
+ "40347": {
+  "title": "Cosmological tests of chameleon dark energy with dark sector coupling",
+  "authors": [
+   "Jia-Qi Wang",
+   "Zong-Kuan Guo",
+   "Shao-Jiang Wang"
+  ],
+  "n_authors": 3,
+  "primary": "astro-ph.CO"
+ },
+ "40363": {
+  "title": "Measuring Precipitable Water Vapor through Dual-Band GPS at Rubin Observatory",
+  "authors": [
+   "Anja Weyant",
+   "W. M. Wood-Vasey",
+   "Elana K. Urbach"
+  ],
+  "n_authors": 5,
+  "primary": "astro-ph.IM"
+ },
+ "40365": {
+  "title": "Complex Organic Molecules in Protostars with ALMA Spectral Surveys (COMPASS) VIII. First interstellar detection of fully deuterated methyl cyanide",
+  "authors": [
+   "A. Belloche",
+   "J. K. Jørgensen",
+   "M. N. Drozdovskaya"
+  ],
+  "n_authors": 15,
+  "primary": "astro-ph.GA"
+ },
+ "40375": {
+  "title": "Extension and validation of the ZPEKTR code for determining the inclination angles of Be stars",
+  "authors": [
+   "Daniela Turis-Gallo",
+   "Michel Curé",
+   "Ronaldo. S. Levenhagen"
+  ],
+  "n_authors": 5,
+  "primary": "astro-ph.SR"
+ },
+ "40382": {
+  "title": "Beyond Selected Breakthroughs: Evaluating Language Models on Randomly Sampled Mathematical Conjectures",
+  "authors": [
+   "Helen Jenne",
+   "Davis Brown",
+   "Jesse He"
+  ],
+  "n_authors": 4,
+  "primary": "cs.AI"
+ },
+ "40388": {
+  "title": "On the Proper 3D Modeling of Orbits in Wide Binary Gravity Tests",
+  "authors": [
+   "Kyu-Hyun Chae"
+  ],
+  "n_authors": 1,
+  "primary": "astro-ph.GA"
+ },
+ "40406": {
+  "title": "TEMPEST - A modular Python-based thermophysical model for rough, irregularly-shaped airless bodies",
+  "authors": [
+   "D. G. Lyster",
+   "C. J. A. Howett"
+  ],
+  "n_authors": 2,
+  "primary": "astro-ph.EP"
+ },
+ "40409": {
+  "title": "Retrieving from Your Own Mistakes: On-Policy Training of Embedding Models for Multi-Hop Retrieval-Augmented Generation",
+  "authors": [
+   "Chenjie Qiu",
+   "Zixuan Zeng",
+   "Shaobin Shi"
+  ],
+  "n_authors": 6,
+  "primary": "cs.AI"
+ },
+ "40411": {
+  "title": "UNIONS: Red and blue alignments of DESI DR1 galaxies",
+  "authors": [
+   "R. Paviot",
+   "C. Murray",
+   "M. Kilbinger"
+  ],
+  "n_authors": 12,
+  "primary": "astro-ph.CO"
+ },
+ "40415": {
+  "title": "OCCAMS: A Multi-Task Learning-Based Investigation of the CMB Power Spectra",
+  "authors": [
+   "Ankit Mandal",
+   "Rahul Shah",
+   "Md. Wali Hossain"
+  ],
+  "n_authors": 6,
+  "primary": "astro-ph.CO"
+ },
+ "40441": {
+  "title": "Influence of $Δ$ resonances in hyperonic neutron stars on gravitational-wave inspiral signatures",
+  "authors": [
+   "Athira S.",
+   "Vivek Baruah Thapa",
+   "Monika Sinha"
+  ],
+  "n_authors": 3,
+  "primary": "astro-ph.HE"
+ },
+ "40444": {
+  "title": "Prefix Executability: Evaluating Tool-Using Agents Beyond Final Success",
+  "authors": [
+   "Amir H. Rezaeian",
+   "Weiyi Sun",
+   "Yassine Benajiba"
+  ],
+  "n_authors": 4,
+  "primary": "cs.AI"
+ },
+ "40456": {
+  "title": "Tailoring Infra-Red Filters for Global Mapping of Enceladus' Thermal Environment",
+  "authors": [
+   "D. G. Lyster",
+   "C. J. A. Howett",
+   "N. E. Bowles"
+  ],
+  "n_authors": 6,
+  "primary": "astro-ph.IM"
+ },
+ "40476": {
+  "title": "Training language models in simulation for psychiatric intake",
+  "authors": [
+   "Samuel Schmidgall",
+   "Tim Strother",
+   "Alex Bijamov"
+  ],
+  "n_authors": 56,
+  "primary": "cs.AI"
+ },
+ "40482": {
+  "title": "FIRME: Registry-Anchored Memory Graphs for Evolving, Heterogeneous Investor Knowledge",
+  "authors": [
+   "Yunbai Zhang",
+   "Yunyi Gao",
+   "Han-Tai Shiao"
+  ],
+  "n_authors": 3,
+  "primary": "cs.AI"
+ },
+ "40492": {
+  "title": "Agentic University: Collaborative Agents for Personalized Learning",
+  "authors": [
+   "Jingru Fan",
+   "Tianle Zhou",
+   "Yunjie Zhou"
+  ],
+  "n_authors": 13,
+  "primary": "cs.AI"
+ },
+ "40503": {
+  "title": "Algebraic World Model: From Exploration to Proofs",
+  "authors": [
+   "Guancheng Pan",
+   "Qixin Tan",
+   "Yang Yuan"
+  ],
+  "n_authors": 4,
+  "primary": "cs.AI"
+ },
+ "40527": {
+  "title": "Mapping Stellar Obliquity Across Space and Time",
+  "authors": [
+   "Lauren I. Biddle",
+   "Brendan P. Bowler"
+  ],
+  "n_authors": 2,
+  "primary": "astro-ph.EP"
+ },
+ "40534": {
+  "title": "The IRAC Distant Cluster Survey",
+  "authors": [
+   "Karolina Garcia",
+   "Anthony H. Gonzalez",
+   "Mark Brodwin"
+  ],
+  "n_authors": 12,
+  "primary": "astro-ph.GA"
+ },
+ "40535": {
+  "title": "Efficient Scalable Oversight via Rewinding",
+  "authors": [
+   "Ziyi Guan",
+   "Yael Tauman Kalai",
+   "Ron Rothblum"
+  ],
+  "n_authors": 4,
+  "primary": "cs.AI"
+ },
+ "40541": {
+  "title": "On the Fundamental Limits of Prefill-Based Decoding Length Prediction",
+  "authors": [
+   "Haowen Shi",
+   "Xuzhe Yan",
+   "Fahao Chen"
+  ],
+  "n_authors": 4,
+  "primary": "cs.AI"
+ },
+ "40545": {
+  "title": "Retrieval as Traversal: Value-Indexed Memory for Stateful Long-Context Agents",
+  "authors": [
+   "Daniel Strauß",
+   "Zhenshan Bing",
+   "Alois Knoll"
+  ],
+  "n_authors": 3,
+  "primary": "cs.AI"
+ },
+ "40550": {
+  "title": "An Empirically Calibrated [C II] Luminosity-Halo Mass Relation for Line Intensity Mapping",
+  "authors": [
+   "Oliver Jeong",
+   "Martin White"
+  ],
+  "n_authors": 2,
+  "primary": "astro-ph.CO"
+ },
+ "40551": {
+  "title": "Ramanujan Challenge Results: AI-Assisted Evaluation Pipeline for Multi-Format Proofs",
+  "authors": [
+   "Alan Sorani",
+   "Ashvni Narayanan",
+   "Michael Shalyt"
+  ],
+  "n_authors": 11,
+  "primary": "cs.AI"
+ },
+ "40556": {
+  "title": "Advancing Clinical Genomic Analysis with a Skill-Centred Agent",
+  "authors": [
+   "Qiaoyu Zheng",
+   "Weike Zhao",
+   "Yanjie Fan"
+  ],
+  "n_authors": 13,
+  "primary": "cs.AI"
+ },
+ "40560": {
+  "title": "FARMS: A Verifiable Foundation for Automated Computational Science",
+  "authors": [
+   "Di Wu",
+   "Ling Liang",
+   "Haizhao Yang"
+  ],
+  "n_authors": 3,
+  "primary": "cs.AI"
+ },
+ "40563": {
+  "title": "Comparing Human Role-Players and LLM-Simulated Clients in Online Counselling Training: An Analysis of Counselling Patterns",
+  "authors": [
+   "Eric Rudolph",
+   "Philipp Steigerwald",
+   "Jens Albrecht"
+  ],
+  "n_authors": 3,
+  "primary": "cs.AI"
+ },
+ "40578": {
+  "title": "VeriCUA: Verification as Agentic Exploration for Computer-Using Agents",
+  "authors": [
+   "Qiushi Sun",
+   "Da Yu",
+   "Alexander Knop"
+  ],
+  "n_authors": 8,
+  "primary": "cs.AI"
+ },
+ "40588": {
+  "title": "Pre-Crime for Agents, at the Last Second: Probing When a Recruited Agent Gives In",
+  "authors": [
+   "Leonidas Raghav"
+  ],
+  "n_authors": 1,
+  "primary": "cs.AI"
+ },
+ "40589": {
+  "title": "Collaborative AI agents for autonomous experimental research with solid-state quantum spins",
+  "authors": [
+   "El Mustapha Mansouri",
+   "Eikichi Kimura",
+   "Masato Koga"
+  ],
+  "n_authors": 4,
+  "primary": "cs.AI"
+ },
+ "40606": {
+  "title": "The unresolved high-mass frontier of the black hole Fundamental Plane",
+  "authors": [
+   "Ramananda Santra",
+   "Samik Mitra",
+   "Shahram Abbassi"
+  ],
+  "n_authors": 3,
+  "primary": "astro-ph.HE"
+ },
+ "40609": {
+  "title": "From Dispersion to Metallicity: Probing the Milky Way Circumgalactic Medium with Fast Radio Bursts",
+  "authors": [
+   "Manami Roy",
+   "Sanskriti Das",
+   "Smita Mathur"
+  ],
+  "n_authors": 5,
+  "primary": "astro-ph.GA"
+ },
+ "40610": {
+  "title": "The Conditional CMB Visibility of High-Redshift X-Ray Cavities in Galaxy clusters",
+  "authors": [
+   "Ramananda Santra",
+   "Samik Mitra"
+  ],
+  "n_authors": 2,
+  "primary": "astro-ph.HE"
+ },
+ "40617": {
+  "title": "Field-level inference under pressure: the information content of the thermal Sunyaev-Zel'dovich field",
+  "authors": [
+   "Carmen Embil Villagra",
+   "Adrian E. Bayer",
+   "William R. Coulton"
+  ],
+  "n_authors": 9,
+  "primary": "astro-ph.CO"
+ },
+ "40633": {
+  "title": "PRISMS GHZ8: Evidence for a Young Burst and Potential Merger Activity at z=10.23",
+  "authors": [
+   "Ruqiu Lin",
+   "Jorge Zavala",
+   "Javier Álvarez-Márquez"
+  ],
+  "n_authors": 29,
+  "primary": "astro-ph.GA"
+ },
+ "40656": {
+  "title": "The $δ$ Scuti instability strip and period-luminosity relation as seen by TESS and Gaia DR3",
+  "authors": [
+   "Daniel Hey",
+   "Simon Murphy",
+   "Timothy R. Bedding"
+  ],
+  "n_authors": 11,
+  "primary": "astro-ph.SR"
+ }
+}

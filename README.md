@@ -167,6 +167,8 @@ maphub-portfolios/    the portfolios; in the prototype a private repository of
 portfolios-template/  a minimal start for a MapHub's portfolios:
                       participants.json and one portfolio in the format
 scorer/
+  arxiv_snapshot.py   past listings from arXiv's metadata snapshot (Kaggle),
+                      in place of harvesting OAI-PMH
   daily_table.py      fetches a day's papers, scores them with Claude (Claude
                       Code or the API), writes the tables
   driver.py           runs the daily routine unattended (mh -d)

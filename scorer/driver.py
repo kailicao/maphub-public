@@ -12,10 +12,10 @@ which it sets). Each weekday from MORNING (Eastern time) it runs `mh -l` until t
 has a table: a usage limit or a busy arXiv only delays it. The new table is then
 pushed, at once when REVIEW is 0 (the prototype's setting); otherwise it waits REVIEW for
 the maintainer, `mh -p` pushing it at once and `mh --hold` keeping it waiting. The rest of
-the time it runs `mh -bb`, backfilling until the usage limit stops it, and sleeps: until the
-middle of the 5-hour session if that is still ahead, so that a seat switched meanwhile is
-used, otherwise until a few minutes after the reset time Claude Code reports; while a weekly
-limit lasts, or when no reset time is given, no sleep is longer than WAKE.
+the time it runs `mh -bb`, backfilling until the usage limit stops it, and sleeps until a few
+minutes after the reset time Claude Code reports (the maintainer stops and restarts the driver
+when switching seats); while a weekly limit lasts, or when no reset time is given, no sleep is
+longer than WAKE.
 Listings missed while a weekly limit lasts are gaps that `mh -bb` fills first once
 it resets. Code pushed from another computer is picked up on its own: every run pulls
 and merges main first (on weekends, Monday morning's run, restarting with new scorer code
@@ -49,9 +49,8 @@ MORNING = dt.time(2, 0)  # Eastern time; arXiv announces at 20:00 the evening be
                          # scored from 02:00 is in the viewer by about 07:00 even after a usage-limit wait
 REVIEW = dt.timedelta(0)  # how long a new listing waits for the maintainer before the driver pushes it
                           # (0: at once, as in the prototype since Oct 21, 2026)
-SESSION = dt.timedelta(hours=5)  # Claude Code's session; a usage-limit sleep wakes in its middle, if still ahead
-WAKE = dt.timedelta(hours=2.5)  # the longest sleep: while a weekly limit lasts, the driver tries again this often,
-                                # so a seat switched meanwhile is used
+SESSION = dt.timedelta(hours=5)  # Claude Code's session; a reset further away is the weekly limit
+WAKE = dt.timedelta(hours=2.5)  # the longest sleep: while a weekly limit lasts, the driver tries again this often
 FALLBACK = dt.timedelta(hours=5)  # sleep after a stop when no reset time is given
 RETRY = dt.timedelta(minutes=30)  # sleep after a failure that is not a usage limit
 MARGIN = dt.timedelta(minutes=3)  # after a reported reset time
@@ -115,7 +114,10 @@ def reset_time(output: str) -> dt.datetime | None:
     if not found:
         return None
     text, zone = found[-1]
-    tz = ZoneInfo(zone) if zone else EASTERN
+    try:
+        tz = ZoneInfo(zone) if zone else EASTERN
+    except Exception:  # not a zone ("in 3 hours"): the text before it may still be a time
+        tz = EASTERN
     current = dt.datetime.now(tz)
     text = text.strip().replace(" at ", " ")
     for fmt in ("%I:%M%p", "%I%p", "%a %I:%M%p", "%a %I%p", "%b %d, %I:%M%p", "%b %d, %I%p",
@@ -157,15 +159,13 @@ def next_morning() -> dt.datetime:
 
 
 def wake_time(reset: dt.datetime) -> dt.datetime:
-    """When to wake after a usage limit that resets at `reset`: the middle of the 5-hour
-    session (reset − SESSION/2) if it is still ahead, so that a seat switched meanwhile is used;
-    otherwise the reset (MARGIN after). A reset more than a session away (the weekly limit)
-    gives a try every WAKE."""
+    """When to wake after a usage limit that resets at `reset`: MARGIN after the reset. A reset
+    more than a session away (the weekly limit) gives a try every WAKE. A seat switched meanwhile
+    is picked up when the maintainer stops and restarts the driver."""
     t = now()
     if reset - t > SESSION:
         return t + WAKE
-    middle = reset - SESSION / 2
-    return middle if middle > t + MARGIN else reset + MARGIN
+    return reset + MARGIN
 
 
 def sleep_until(when: dt.datetime, doing: str, cap: bool = True) -> None:

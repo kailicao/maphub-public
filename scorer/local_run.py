@@ -398,6 +398,25 @@ def categories_begun(day: dt.date) -> bool:
     return False
 
 
+def logged_by_hand(args: list[str]) -> int:
+    """Run this command again with its output both on the terminal and in the day's log, which
+    the driver writes too (`$ mh … (by hand)`, then the output and the exit code). The terminal
+    stays the run's input, so `mh -p` can still ask before pushing."""
+    import driver
+    driver.log(f"$ mh {' '.join(args)} (by hand)")
+    with open(driver.log_path(), "ab") as out:
+        proc = subprocess.Popen([sys.executable, __file__, *args], stdout=subprocess.PIPE,
+                                stderr=subprocess.STDOUT, env={**os.environ, "MAPHUB_LOGGED": "1"})
+        while chunk := os.read(proc.stdout.fileno(), 4096):
+            sys.stdout.buffer.write(chunk)
+            sys.stdout.flush()
+            out.write(chunk)
+            out.flush()
+        code = proc.wait()
+    driver.log(f"exit {code} (by hand)")
+    return code
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     mode = ap.add_mutually_exclusive_group(required=True)
@@ -428,6 +447,8 @@ def main() -> int:
         return driver.flag(driver.STOP, "The driver stops once it finishes the listing it is scoring, or at once if it is sleeping "
                            "or waiting for review; commits it has not pushed wait for `mh -p`. "
                            "`mh --status` shows when it has stopped.")
+    if not os.environ.get("MAPHUB_LOGGED"):  # started by hand: into the day's log as well
+        return logged_by_hand(sys.argv[1:])
     global VIA
     VIA = args.via
     if args.back_all:

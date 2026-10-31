@@ -126,7 +126,7 @@ Where MapHub could go next:
 - **Other providers.** The scorer calls only Claude (Claude Code or the API); another model provider would need its own request function (`--via`).
 - **A check of portfolio changes.** A GitHub bot that checks pull requests to the portfolios (own folder only, length), instead of the maintainer's review alone.
 - **Missing participants in the viewer.** Some participants have no column on a given day: they joined later, or chose status no-legacy. For them, the daily job would keep a long-term correlation table between participants, built from every day on which both have scores. A user could still select a missing participant: other participants would then be sorted by long-term correlation with them, and papers by a weighted sum of the present participants' scores, marked as an estimate. To start, each present participant's weight would be their long-term correlation with the missing one, positive correlations only; weights fitted by regression are a later option. The viewer would then read one day's table plus the correlation table.
-- **Driver logs.** Once the legacy survey's first pass is done, the driver's logs can go back to one file a month (one a day while it runs, all kept).
+- **Logs.** Once the legacy survey's first pass is done, the logs of `mh` runs can go back to one file a month (one a day while it runs, all kept).
 - **Viewer.** Ranking top papers by a set of participants (their average score); column headers that stay in view while scrolling, LaTeX in titles shown as math (e.g. `$z=1-4$`), and a more compact row layout for large listings.
 
 ## Parameters to tune

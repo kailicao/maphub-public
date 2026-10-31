@@ -22,7 +22,7 @@ and merges main first (on weekends, Monday morning's run, restarting with new sc
 before it scores), and when the scorer's code has changed the driver restarts itself between
 runs. When the morning comes during a
 backfill, the backfill stops after the listing it is scoring. The driver logs to
-.cache/driver/driver-<date>.log, one file a day, all kept (a run's output stays in the
+.cache/logs/mh-<date>.log, with the mh runs started by hand: one file a day, all kept (a run's output stays in the
 file of the day it started).
 """
 
@@ -57,6 +57,7 @@ MARGIN = dt.timedelta(minutes=3)  # after a reported reset time
 TICK = 60  # seconds between checks while sleeping or waiting
 
 STATE = ROOT / ".cache" / "driver"
+LOGS = ROOT / ".cache" / "logs"  # every mh run's output, the driver's and those started by hand
 STATUS = STATE / "status.json"
 PID = STATE / "driver.pid"
 STOP, HOLD, YIELD = STATE / "stop", STATE / "hold", STATE / "yield"  # flags; local_run.py checks YIELD and STOP
@@ -69,10 +70,12 @@ def now() -> dt.datetime:
 
 
 def log_path() -> Path:
-    """Today's log (driver-2026-10-21.log); a run's output goes to the file it started in.
-    Every log is kept: during the legacy survey a busy day writes about 200 KB, the
-    whole survey about 10-20 MB; once it is done, a file a month will do."""
-    return STATE / f"driver-{now():%Y-%m-%d}.log"
+    """Today's log (mh-2026-10-21.log), shared by the driver and the mh runs started by hand;
+    a run's output goes to the file it started in. Every log is kept: during the legacy survey
+    a busy day writes about 200 KB, the whole survey about 10-20 MB; once it is done, a file a
+    month will do. Before Oct 31, 2026 the driver's logs were .cache/driver/driver-<date>.log."""
+    LOGS.mkdir(parents=True, exist_ok=True)
+    return LOGS / f"mh-{now():%Y-%m-%d}.log"
 
 
 def log(message: str) -> None:
@@ -92,7 +95,8 @@ def run(*args: str, watch_morning: bool = False) -> tuple[int, str]:
     with open(log_path(), "a", encoding="utf-8") as out:
         proc = subprocess.Popen([*RUNNER, *args], stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
                                 stdin=subprocess.DEVNULL, text=True, bufsize=1,
-                                env={**os.environ, "MAPHUB_UNATTENDED": "1"})  # no pushes on weekends (local_run.py)
+                                env={**os.environ, "MAPHUB_UNATTENDED": "1",  # no pushes on weekends (local_run.py)
+                                     "MAPHUB_LOGGED": "1"})  # logged here, not again by local_run.py
         lines = []
         for line in proc.stdout:
             out.write(line)
@@ -299,7 +303,7 @@ def report() -> int:
     else:
         print("Driver: never started on this computer.")
     print(f"Commits waiting to be pushed: {waiting_commits()}")
-    logs = sorted(STATE.glob("driver-*.log"), key=lambda p: p.stat().st_mtime)
+    logs = sorted([*LOGS.glob("mh-*.log"), *STATE.glob("driver-*.log")], key=lambda p: p.stat().st_mtime)
     if logs:
         print(f"Last lines of {logs[-1].relative_to(ROOT)}:")
         print("".join(logs[-1].read_text(encoding="utf-8").splitlines(keepends=True)[-8:]), end="")

@@ -12,17 +12,17 @@ which it sets). Each weekday from MORNING (Eastern time) it runs `mh -l` until t
 has a table: a usage limit or a busy arXiv only delays it. The new table is then
 pushed, at once when REVIEW is 0 (the prototype's setting); otherwise it waits REVIEW for
 the maintainer, `mh -p` pushing it at once and `mh --hold` keeping it waiting. The rest of
-the time it runs `mh -bb`, backfilling until the usage limit stops it, and sleeps: until the
-middle of the 5-hour session if that is still ahead, so that a seat switched meanwhile is
-used, otherwise until a few minutes after the reset time Claude Code reports; while a weekly
-limit lasts, or when no reset time is given, no sleep is longer than WAKE.
+the time it runs `mh -bb`, backfilling until the usage limit stops it, and sleeps until a few
+minutes after the reset time Claude Code reports (the maintainer stops and restarts the driver
+when switching seats); while a weekly limit lasts, or when no reset time is given, no sleep is
+longer than WAKE.
 Listings missed while a weekly limit lasts are gaps that `mh -bb` fills first once
 it resets. Code pushed from another computer is picked up on its own: every run pulls
 and merges main first (on weekends, Monday morning's run, restarting with new scorer code
 before it scores), and when the scorer's code has changed the driver restarts itself between
 runs. When the morning comes during a
 backfill, the backfill stops after the listing it is scoring. The driver logs to
-.cache/driver/driver-<date>.log, one file a day, all kept (a run's output stays in the
+.cache/logs/mh-<date>.log, with the mh runs started by hand: one file a day, all kept (a run's output stays in the
 file of the day it started).
 """
 
@@ -49,15 +49,15 @@ MORNING = dt.time(2, 0)  # Eastern time; arXiv announces at 20:00 the evening be
                          # scored from 02:00 is in the viewer by about 07:00 even after a usage-limit wait
 REVIEW = dt.timedelta(0)  # how long a new listing waits for the maintainer before the driver pushes it
                           # (0: at once, as in the prototype since Oct 21, 2026)
-SESSION = dt.timedelta(hours=5)  # Claude Code's session; a usage-limit sleep wakes in its middle, if still ahead
-WAKE = dt.timedelta(hours=2.5)  # the longest sleep: while a weekly limit lasts, the driver tries again this often,
-                                # so a seat switched meanwhile is used
+SESSION = dt.timedelta(hours=5)  # Claude Code's session; a reset further away is the weekly limit
+WAKE = dt.timedelta(hours=2.5)  # the longest sleep: while a weekly limit lasts, the driver tries again this often
 FALLBACK = dt.timedelta(hours=5)  # sleep after a stop when no reset time is given
 RETRY = dt.timedelta(minutes=30)  # sleep after a failure that is not a usage limit
 MARGIN = dt.timedelta(minutes=3)  # after a reported reset time
 TICK = 60  # seconds between checks while sleeping or waiting
 
 STATE = ROOT / ".cache" / "driver"
+LOGS = ROOT / ".cache" / "logs"  # every mh run's output, the driver's and those started by hand
 STATUS = STATE / "status.json"
 PID = STATE / "driver.pid"
 STOP, HOLD, YIELD = STATE / "stop", STATE / "hold", STATE / "yield"  # flags; local_run.py checks YIELD and STOP
@@ -70,10 +70,12 @@ def now() -> dt.datetime:
 
 
 def log_path() -> Path:
-    """Today's log (driver-2026-10-21.log); a run's output goes to the file it started in.
-    Every log is kept: during the legacy survey a busy day writes about 200 KB, the
-    whole survey about 10-20 MB; once it is done, a file a month will do."""
-    return STATE / f"driver-{now():%Y-%m-%d}.log"
+    """Today's log (mh-2026-10-21.log), shared by the driver and the mh runs started by hand;
+    a run's output goes to the file it started in. Every log is kept: during the legacy survey
+    a busy day writes about 200 KB, the whole survey about 10-20 MB; once it is done, a file a
+    month will do. Before Oct 31, 2026 the driver's logs were .cache/driver/driver-<date>.log."""
+    LOGS.mkdir(parents=True, exist_ok=True)
+    return LOGS / f"mh-{now():%Y-%m-%d}.log"
 
 
 def log(message: str) -> None:
@@ -93,7 +95,8 @@ def run(*args: str, watch_morning: bool = False) -> tuple[int, str]:
     with open(log_path(), "a", encoding="utf-8") as out:
         proc = subprocess.Popen([*RUNNER, *args], stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
                                 stdin=subprocess.DEVNULL, text=True, bufsize=1,
-                                env={**os.environ, "MAPHUB_UNATTENDED": "1"})  # no pushes on weekends (local_run.py)
+                                env={**os.environ, "MAPHUB_UNATTENDED": "1",  # no pushes on weekends (local_run.py)
+                                     "MAPHUB_LOGGED": "1"})  # logged here, not again by local_run.py
         lines = []
         for line in proc.stdout:
             out.write(line)
@@ -115,7 +118,10 @@ def reset_time(output: str) -> dt.datetime | None:
     if not found:
         return None
     text, zone = found[-1]
-    tz = ZoneInfo(zone) if zone else EASTERN
+    try:
+        tz = ZoneInfo(zone) if zone else EASTERN
+    except Exception:  # not a zone ("in 3 hours"): the text before it may still be a time
+        tz = EASTERN
     current = dt.datetime.now(tz)
     text = text.strip().replace(" at ", " ")
     for fmt in ("%I:%M%p", "%I%p", "%a %I:%M%p", "%a %I%p", "%b %d, %I:%M%p", "%b %d, %I%p",
@@ -157,15 +163,13 @@ def next_morning() -> dt.datetime:
 
 
 def wake_time(reset: dt.datetime) -> dt.datetime:
-    """When to wake after a usage limit that resets at `reset`: the middle of the 5-hour
-    session (reset − SESSION/2) if it is still ahead, so that a seat switched meanwhile is used;
-    otherwise the reset (MARGIN after). A reset more than a session away (the weekly limit)
-    gives a try every WAKE."""
+    """When to wake after a usage limit that resets at `reset`: MARGIN after the reset. A reset
+    more than a session away (the weekly limit) gives a try every WAKE. A seat switched meanwhile
+    is picked up when the maintainer stops and restarts the driver."""
     t = now()
     if reset - t > SESSION:
         return t + WAKE
-    middle = reset - SESSION / 2
-    return middle if middle > t + MARGIN else reset + MARGIN
+    return reset + MARGIN
 
 
 def sleep_until(when: dt.datetime, doing: str, cap: bool = True) -> None:
@@ -299,7 +303,7 @@ def report() -> int:
     else:
         print("Driver: never started on this computer.")
     print(f"Commits waiting to be pushed: {waiting_commits()}")
-    logs = sorted(STATE.glob("driver-*.log"), key=lambda p: p.stat().st_mtime)
+    logs = sorted([*LOGS.glob("mh-*.log"), *STATE.glob("driver-*.log")], key=lambda p: p.stat().st_mtime)
     if logs:
         print(f"Last lines of {logs[-1].relative_to(ROOT)}:")
         print("".join(logs[-1].read_text(encoding="utf-8").splitlines(keepends=True)[-8:]), end="")

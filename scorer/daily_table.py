@@ -61,6 +61,7 @@ from __future__ import annotations
 import argparse
 import datetime as dt
 import email.utils
+import http.client
 import json
 import math
 import os
@@ -88,8 +89,13 @@ RSS_BASE = "https://rss.arxiv.org/rss/"  # + the listings, joined by "+"
 API_URL = "https://export.arxiv.org/api/query"
 OAI_URL = "https://oaipmh.arxiv.org/oai"  # arXiv's interface for bulk metadata
 OAI_CACHE = ROOT / ".cache" / "oai"  # harvested records, by set and submission month (not in git)
+SNAPSHOT_DROP = ROOT / ".cache" / "arxiv-snapshot"  # a converted snapshot left here is merged at the next backfill
 OAI_EXTEND_DAYS = 30  # a cache extended backwards grows by at least this many days
 OAI_SETTLE_DAYS = 3  # a window counts as covered once harvested this many days after it ends
+OAI_CHUNK_DAYS = 10  # a harvest goes in pieces of this many days, each saved once complete
+OAI_TIMEOUT = 180  # seconds to wait for a page: OAI-PMH builds up to 1,000 records before sending
+OAI_BUSY_WAITS = (30,)  # one short wait on a busy reply: the arXiv API is the fallback
+OAI_PAUSE_HOURS = 2  # after a failed harvest, past listings use the arXiv API this long
 OAI_NS = {"oai": "http://www.openarchives.org/OAI/2.0/", "raw": "http://arxiv.org/OAI/arXivRaw/"}
 ARXIV_PAUSE = 3.0  # arXiv API terms: at most one request every 3 seconds
 BUSY_WAITS = (30, 60, 120, 120)  # seconds before retrying a 429 or 503 reply: up to five tries
@@ -286,32 +292,32 @@ def listings_text() -> str:
 # ------------------------------------------------------------------------ fetch
 
 
-def http_get(url: str) -> bytes:
+def http_get(url: str, timeout: float = 60, busy_waits: tuple = BUSY_WAITS, tries: int = 3) -> bytes:
     """GET with retries. A busy server (429 Too Many Requests, 503 Service
-    Unavailable) gets long waits, or the wait its Retry-After asks for; other
-    failures get three quick tries."""
+    Unavailable) gets the waits in busy_waits, or the wait its Retry-After asks
+    for; other failures (a timeout, a lost connection) get `tries` quick tries."""
     req = urllib.request.Request(url, headers={"User-Agent": user_agent()})
     quick, busy = 0, 0
     while True:
         try:
-            with urllib.request.urlopen(req, timeout=60) as resp:
+            with urllib.request.urlopen(req, timeout=timeout) as resp:
                 return resp.read()
         except urllib.error.HTTPError as e:
             if e.code not in (429, 503):
                 error = e
-            elif busy < len(BUSY_WAITS):
+            elif busy < len(busy_waits):
                 after = (e.headers.get("Retry-After") or "").strip()
-                wait = min(int(after), 300) if after.isdigit() else BUSY_WAITS[busy]
+                wait = min(int(after), 300) if after.isdigit() else busy_waits[busy]
                 busy += 1
                 log(f"  GET failed ({e}); the server is busy, retrying in {wait} s")
                 time.sleep(wait)
                 continue
             else:
                 raise MapHubError(f"GET {url} failed: {e} (still busy after {busy + 1} tries)") from e
-        except (urllib.error.URLError, TimeoutError) as e:
+        except (OSError, http.client.HTTPException) as e:  # URLError, a timeout, a reset, a short read
             error = e
         quick += 1
-        if quick == 3:
+        if quick == tries:
             raise MapHubError(f"GET {url} failed: {error}") from error
         log(f"  GET failed ({error}); retrying")
         time.sleep(ARXIV_PAUSE * (quick + 1))
@@ -548,53 +554,93 @@ def oai_harvest(setspec: str, frm: dt.date, until: dt.date | None) -> int:
         params["until"] = until.isoformat()
     log(f"  harvesting {setspec} records changed {frm}–{until or 'today'} from arXiv OAI-PMH")
     calls = count = 0
+    by_month: dict[str, list[str]] = {}  # written once the piece is complete, so a cut leaves no broken line
     while True:
         time.sleep(ARXIV_PAUSE)
-        root = ET.fromstring(http_get(f"{OAI_URL}?{urllib.parse.urlencode(params)}"))
+        root = ET.fromstring(http_get(f"{OAI_URL}?{urllib.parse.urlencode(params)}",
+                                      timeout=OAI_TIMEOUT, busy_waits=OAI_BUSY_WAITS, tries=2))
         calls += 1
         error = root.find("oai:error", OAI_NS)
         if error is not None:
             if error.get("code") == "noRecordsMatch":
                 break
             raise MapHubError(f"OAI-PMH error for {setspec}: {error.get('code')}: {clean(error.text)}")
-        by_month: dict[str, list[str]] = {}
         for rec in root.iterfind("oai:ListRecords/oai:record", OAI_NS):
             paper = oai_record(rec)
             if paper:
                 by_month.setdefault(paper["submitted"][:7], []).append(json.dumps(paper, ensure_ascii=False))
                 count += 1
-        for month, lines in by_month.items():
-            with open(folder / f"{month}.jsonl", "a", encoding="utf-8") as out:
-                out.write("\n".join(lines) + "\n")
         token = clean(root.findtext("oai:ListRecords/oai:resumptionToken", "", OAI_NS))
         if not token:
             break
         params = {"verb": "ListRecords", "resumptionToken": token}
+    for month, lines in by_month.items():
+        with open(folder / f"{month}.jsonl", "a", encoding="utf-8") as out:
+            out.write("\n".join(lines) + "\n")
     log(f"    {count} records in {calls} requests")
     return calls
 
 
+def cache_records(path: Path):
+    """The records of one cache file; a line cut short (a harvest killed while writing,
+    before Oct 30, 2026) is skipped with a warning."""
+    for n, line in enumerate(open(path, encoding="utf-8"), 1):
+        try:
+            yield json.loads(line)
+        except ValueError:
+            if line.strip():
+                log(f"  {path.name}, line {n}: not a complete record; skipped")
+
+
 def oai_cover(setspec: str, start: dt.datetime, end: dt.datetime) -> None:
-    """Make sure the cache holds every paper of `setspec` submitted in [start, end)."""
+    """Make sure the cache holds every paper of `setspec` submitted in [start, end).
+    The cache covers the records changed from a date ("from") to the day of its latest harvest
+    ("harvested"); a paper submitted in the window may have changed any time since, so the
+    covered stretch reaches from before the window to the present, without gaps. It grows in
+    pieces of OAI_CHUNK_DAYS, each saved once complete, so a failed harvest loses one piece and
+    the next run carries on from it. After a failure, OAI-PMH rests for OAI_PAUSE_HOURS and
+    past listings come from the arXiv API meanwhile."""
     state_path = OAI_CACHE / "state.json"
     state = read_json(state_path) if state_path.exists() else {}
-    span = state.get(setspec)
+    paused = state.get("paused_until")
+    if paused and dt.datetime.now(dt.timezone.utc) < dt.datetime.fromisoformat(paused):
+        raise MapHubError(f"OAI-PMH rests after a failure until {paused[:16]} UTC")
     today = dt.datetime.now(dt.timezone.utc).date()
     need_from = start.date() - dt.timedelta(days=1)
-    if span is None:
-        oai_harvest(setspec, need_from, None)
-        span = {"from": need_from.isoformat(), "harvested": today.isoformat()}
-    else:
-        frm, harvested = dt.date.fromisoformat(span["from"]), dt.date.fromisoformat(span["harvested"])
-        if need_from < frm:
-            new_from = min(need_from, frm - dt.timedelta(days=OAI_EXTEND_DAYS))
-            oai_harvest(setspec, new_from, frm - dt.timedelta(days=1))
-            span["from"] = new_from.isoformat()
-        if harvested < end.date() + dt.timedelta(days=OAI_SETTLE_DAYS) and harvested < today:
-            oai_harvest(setspec, harvested, None)
-            span["harvested"] = today.isoformat()
-    state[setspec] = span
-    write_json(state_path, state)
+    # a new cache covers nothing yet: the first piece goes back from today
+    span = state.setdefault(setspec, {"from": (today + dt.timedelta(days=1)).isoformat(), "harvested": today.isoformat()})
+    piece = dt.timedelta(days=OAI_CHUNK_DAYS)
+
+    def save() -> None:
+        write_json(state_path, state)
+
+    try:
+        frm = dt.date.fromisoformat(span["from"])
+        if need_from < frm:  # backwards, the latest piece first, at least OAI_EXTEND_DAYS beyond the window
+            target = min(need_from, frm - dt.timedelta(days=OAI_EXTEND_DAYS))
+            while frm > target:
+                lo = max(target, frm - piece)
+                oai_harvest(setspec, lo, frm - dt.timedelta(days=1))
+                frm = lo
+                span["from"] = frm.isoformat()
+                save()
+        # Forwards, to today, whenever the cache is behind: a paper revised since the latest
+        # harvest carries the revision's date, so the pieces harvested backwards would miss it.
+        harvested = dt.date.fromisoformat(span["harvested"])
+        if harvested < today:
+            while harvested < today:
+                hi = min(today, harvested + piece)
+                oai_harvest(setspec, harvested, None if hi == today else hi)
+                harvested = hi
+                span["harvested"] = harvested.isoformat()
+                save()
+    except (MapHubError, ET.ParseError):
+        until = dt.datetime.now(dt.timezone.utc) + dt.timedelta(hours=OAI_PAUSE_HOURS)
+        state["paused_until"] = until.isoformat(timespec="minutes")
+        save()
+        raise
+    state.pop("paused_until", None)
+    save()
 
 
 def id_month(arxiv_id: str) -> str:
@@ -665,8 +711,8 @@ def oai_month_check(listing: str, setspec: str) -> None:
         for back in range(lookback + 1):
             path = folder / f"{(month.replace(day=15) - dt.timedelta(days=30 * back)).strftime('%Y-%m')}.jsonl"
             if path.exists():
-                for line in open(path, encoding="utf-8"):
-                    paper_id = json.loads(line)["id"]
+                for record in cache_records(path):
+                    paper_id = record["id"]
                     if id_month(paper_id) == yymm:
                         ids.add(paper_id)
         time.sleep(ARXIV_PAUSE)
@@ -696,6 +742,9 @@ def fetch_past_listing_oai(date: dt.date) -> list[dict]:
         f"{start.astimezone(EASTERN):%a %Y-%m-%d %H:%M} to {end.astimezone(EASTERN):%a %Y-%m-%d %H:%M} ET")
     found: dict[str, dict] = {}
     months = sorted({start.strftime("%Y-%m"), end.strftime("%Y-%m")})
+    if (SNAPSHOT_DROP / "snapshot.json").exists():
+        import arxiv_snapshot  # converted on another computer and carried here (RUNNING.md, step 7)
+        arxiv_snapshot.merge(SNAPSHOT_DROP, in_run=True)
     for listing in LISTINGS:
         setspec = oai_set(listing)
         oai_cover(setspec, start, end)
@@ -703,8 +752,7 @@ def fetch_past_listing_oai(date: dt.date) -> list[dict]:
         for month in months:
             path = OAI_CACHE / setspec.replace(":", "_") / f"{month}.jsonl"
             if path.exists():
-                for line in open(path, encoding="utf-8"):
-                    paper = json.loads(line)
+                for paper in cache_records(path):
                     found[paper["id"]] = paper  # later harvests win
     when = lambda p: dt.datetime.fromisoformat(p["submitted"].replace("Z", "+00:00"))
     papers = sorted((p for p in found.values() if listed_here(p) and start <= when(p) < end),
@@ -1346,9 +1394,11 @@ def check_portfolios(portfolios: Path) -> None:
         raise MapHubError(f"{portfolios.name} has unpushed commits; push them first")
 
 
-def write_tables(tables: Path, date: dt.date, papers, scores: dict[str, dict[str, int]]) -> list[Path]:
+def write_tables(tables: Path, date: dt.date, papers, scores: dict[str, dict[str, int]],
+                 add: bool = False) -> list[Path]:
     """One Parquet file per ID month: an ID column (the part the folder does not
-    imply: '02245', or 'astro-ph_234' for old IDs), then uint8 scores."""
+    imply: '02245', or 'astro-ph_234' for old IDs), then uint8 scores. With add=True
+    (late papers, --late), the papers join an existing table's rows, which stay as they are."""
     by_month: dict[str, list[str]] = {}
     for p in papers:
         yymm, row = id_parts(p["id"])
@@ -1360,7 +1410,18 @@ def write_tables(tables: Path, date: dt.date, papers, scores: dict[str, dict[str
         for who in sorted(scores):
             columns[who] = pa.array([scores[who][full_id(yymm, n)] for n in order], pa.uint8())
         path = table_path(tables, yymm, date)
-        if path.exists():
+        if add and path.exists():
+            old = pq.read_table(path)
+            old_ids = old.column("id").to_pylist()
+            if set(old_ids) & set(order) or sorted(c for c in old.column_names if c != "id") != sorted(scores):
+                raise MapHubError(f"{path}: the late papers overlap it, or its columns differ; not adding")
+            order = sorted(old_ids + order)
+            at = dict(zip(old_ids, range(len(old_ids))))
+            columns = {"id": pa.array(order, pa.string())}
+            for who in sorted(scores):
+                was = old.column(who).to_pylist()
+                columns[who] = pa.array([was[at[n]] if n in at else scores[who][full_id(yymm, n)] for n in order], pa.uint8())
+        elif path.exists():
             # Keep the columns of participants not scored in this run, e.g. the
             # daily job's columns when the designer's own column is rescored for a past date.
             old = pq.read_table(path)
@@ -1377,7 +1438,9 @@ def write_tables(tables: Path, date: dt.date, papers, scores: dict[str, dict[str
         pq.write_table(pa.table(columns), tmp)
         os.replace(tmp, path)
         written.append(path)
-    write_index(tables, date, sorted(by_month))
+    # Late papers join a date's tables: the date keeps the folders it had.
+    held = set(index_dates(tables).get(date.isoformat(), [])) if add else set()
+    write_index(tables, date, sorted(set(by_month) | held))
     write_empty_list(tables)
     write_top(tables, date)
     return written
@@ -1654,6 +1717,31 @@ def write_commit_message(args, date, cfg, via, columns, n_papers, n_skipped, n_m
     log(f"Commit message written to {path}")
 
 
+def write_late_message(args, cfg, via, columns, by_listing: dict[str, list[dict]], n_skipped: int,
+                       promoted: dict[str, int] | None) -> None:
+    """The commit message for late papers added to past tables (--late), in the form of
+    write_commit_message, with the papers listed by listing date."""
+    write_commit_message(args, dt.datetime.now(EASTERN).date(), cfg, via, columns,
+                         sum(map(len, by_listing.values())), n_skipped, promoted=promoted)
+    path = args.work / "commit-message.txt"
+    lines = path.read_text(encoding="utf-8").splitlines()
+    n = sum(map(len, by_listing.values()))
+    if args.late:
+        lines[0] = f"Late papers added to {len(by_listing)} past tables (via {via})"
+        lines += ["", f"{n} papers that the backfills missed (revised after the cache's latest harvest, "
+                  "found by arxiv_snapshot.py missing), each added to its listing's table; "
+                  "the rows already there are unchanged:"]
+    else:
+        lines[0] = f"Tables of {min(by_listing)} to {max(by_listing)} rescored for {', '.join(columns)} (via {via})"
+        lines += ["", f"{n} papers in {len(by_listing)} tables scored again for the columns above, "
+                  "with the current portfolios; the other columns are unchanged."]
+        lines += [f"- {d}: {len(group)} papers" for d, group in sorted(by_listing.items())]
+        path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+        return
+    lines += [f"- {d}: {', '.join(p['id'] for p in group)}" for d, group in sorted(by_listing.items())]
+    path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     ap.add_argument("date", nargs="?", type=dt.date.fromisoformat,
@@ -1678,6 +1766,12 @@ def main() -> int:
     ap.add_argument("--work", type=Path, default=ROOT / ".work",
                     help="saved papers and scores for resuming")
     ap.add_argument("--config", type=Path, default=ROOT / "config-log.json")
+    ap.add_argument("--late", type=Path, metavar="PAPERS.json",
+                    help="score papers that past listings missed (arxiv_snapshot.py missing) in one run, "
+                         "and add each to its listing's table")
+    ap.add_argument("--rescore", type=Path, metavar="PAPERS.json",
+                    help="score the papers of past tables again (arxiv_snapshot.py listed) in one run, for the "
+                         "columns served, replacing those columns and keeping the others")
     args = ap.parse_args()
     load_env(ROOT / ".env")
     if args.rebuild_top:
@@ -1687,7 +1781,8 @@ def main() -> int:
         ap.error("--model and --effort are only for trials with --test; "
                  "real runs follow the configuration log")
     # A listing dated before today (Eastern time) is a past date.
-    past = args.date is not None and args.date < dt.datetime.now(EASTERN).date()
+    batch_file = args.late or args.rescore  # papers of several past listings, scored in one run
+    past = batch_file is not None or (args.date is not None and args.date < dt.datetime.now(EASTERN).date())
     legacy = past and not args.daily  # a past date is the legacy survey unless scored as a daily run
     via = args.via or "claude-code"
     if via == "claude-code" and args.batch:
@@ -1717,17 +1812,33 @@ def main() -> int:
         # listing uses, and is attributed to, the configuration of its run.
         cfg = load_config(args.config, dt.datetime.now(EASTERN).date())
         use_listings(cfg)
-        date, papers = get_papers(args.work, args.date)
+        if batch_file:
+            papers = read_json(batch_file)
+            date = dt.datetime.now(EASTERN).date()  # names the work dir: .work/late-<today>, .work/rescore-<today>
+            day_dir = args.work / f"{'late' if args.late else 'rescore'}-{date.isoformat()}"
+        else:
+            date, papers = get_papers(args.work, args.date)
+            day_dir = args.work / date.isoformat()
         announced = bool(papers)  # an empty current listing means no announcement
-        if args.date is None and not args.test:
+        if args.date is None and not args.test and not batch_file:
             # Runs are repeated in case arXiv announces late; a listing already in
             # the tables is not scored again (an explicit date forces a rescore).
             if date.isoformat() in index_dates(args.tables):
                 log(f"The current listing ({date}) is already scored; nothing to do.")
                 return 0
-        day_dir = args.work / date.isoformat()
         dupes: set[str] = set()
-        if not args.test:
+        if args.late:
+            check_portfolios(args.portfolios)
+            everywhere = {full_id(f.parent.name, i) for f in args.tables.glob("*/*/*.parquet")
+                          for i in pq.read_table(f, columns=["id"]).column(0).to_pylist()}
+            dupes = {p["id"] for p in papers} & everywhere
+            papers = [p for p in papers if p["id"] not in dupes]
+            if not papers:
+                log("Every late paper is already in a table; nothing to do.")
+                return 0
+        elif args.rescore:
+            check_portfolios(args.portfolios)  # every paper is in its table already: that is the point
+        elif not args.test:
             check_portfolios(args.portfolios)
             dupes = scored_elsewhere(args.tables, date, papers)
             if dupes:
@@ -1850,6 +1961,17 @@ def main() -> int:
             for who in portfolios:
                 for k in range(len(chunks)):
                     scores[who].update(read_json(scores_dir / who / f"chunk{k}.json")["scores"])
+        if batch_file:
+            by_listing: dict[str, list[dict]] = {}
+            for p in papers:
+                by_listing.setdefault(p["listing"], []).append(p)
+            for listing, group in sorted(by_listing.items()):
+                mine = {who: {p["id"]: scores[who][p["id"]] for p in group} for who in scores}
+                for path in write_tables(tables, dt.date.fromisoformat(listing), group, mine, add=bool(args.late)):
+                    log(f"{'Added' if args.late else 'Rescored'} {len(group)} paper(s) in {path}")
+            publish_roster(tables, args.portfolios)
+            write_late_message(args, cfg, via, sorted(scores), by_listing, len(dupes), promoted)
+            return 0
         for path in write_tables(tables, date, papers, scores):
             log(f"Wrote {path}")
         meta = write_meta(tables, date, [p["id"] for p in papers],

@@ -16,14 +16,13 @@ the time it runs `mh -bb`, backfilling until the usage limit stops it, and sleep
 minutes after the reset time Claude Code reports (the maintainer stops and restarts the driver
 when switching seats); while a weekly limit lasts, or when no reset time is given, no sleep is
 longer than WAKE.
-Listings missed while a weekly limit lasts are gaps that `mh -bb` fills first once
-it resets. Code pushed from another computer is picked up on its own: every run pulls
-and merges main first (on weekends, Monday morning's run, restarting with new scorer code
-before it scores), and when the scorer's code has changed the driver restarts itself between
-runs. When the morning comes during a
-backfill, the backfill stops after the listing it is scoring. The driver logs to
-.cache/logs/mh-<date>.log, with the mh runs started by hand: one file a day, all kept (a run's output stays in the
-file of the day it started).
+Listings missed while a weekly limit lasts are gaps that `mh -bb` fills first once it resets.
+Code pushed from another computer is picked up on its own: every run pulls and merges main
+first (on weekends, Monday morning's run, restarting with new scorer code before it scores), and
+when the scorer's code has changed the driver restarts itself between runs. When the morning
+comes during a backfill, the backfill stops after the listing it is scoring. The driver logs to
+.cache/logs/mh-<date>.log, with the mh runs started by hand: one file a day, all kept (a run's
+output stays in the file of the day it started).
 """
 
 from __future__ import annotations
@@ -51,7 +50,6 @@ REVIEW = dt.timedelta(0)  # how long a new listing waits for the maintainer befo
                           # (0: at once, as in the prototype since Oct 21, 2026)
 SESSION = dt.timedelta(hours=5)  # Claude Code's session; a reset further away is the weekly limit
 WAKE = dt.timedelta(hours=2.5)  # the longest sleep: while a weekly limit lasts, the driver tries again this often
-FALLBACK = dt.timedelta(hours=5)  # sleep after a stop when no reset time is given
 RETRY = dt.timedelta(minutes=30)  # sleep after a failure that is not a usage limit
 MARGIN = dt.timedelta(minutes=3)  # after a reported reset time
 TICK = 60  # seconds between checks while sleeping or waiting
@@ -84,8 +82,10 @@ def log(message: str) -> None:
 
 
 def status(doing: str, until: dt.datetime | None = None) -> None:
-    STATUS.write_text(json.dumps({"pid": os.getpid(), "doing": doing, "since": now().isoformat(timespec="seconds"),
-                                  "until": until.isoformat(timespec="minutes") if until else None}) + "\n")
+    tmp = STATUS.with_suffix(STATUS.suffix + ".tmp")  # written whole, then renamed: mh --status never reads half a file
+    tmp.write_text(json.dumps({"pid": os.getpid(), "doing": doing, "since": now().isoformat(timespec="seconds"),
+                               "until": until.isoformat(timespec="minutes") if until else None}) + "\n")
+    os.replace(tmp, STATUS)
 
 
 def run(*args: str, watch_morning: bool = False) -> tuple[int, str]:
@@ -218,7 +218,7 @@ def review_and_push() -> None:
 
 def after_stop(code: int, output: str, what: str, retry: bool = False) -> None:
     """Sleep after a run that stopped: until the usage limit resets, or a while
-    (RETRY after a failure, or with retry=True; FALLBACK otherwise)."""
+    (RETRY after a failure, or with retry=True; until the next wake, WAKE, otherwise)."""
     if STOP.exists():
         return
     reset = reset_time(output)
@@ -227,7 +227,7 @@ def after_stop(code: int, output: str, what: str, retry: bool = False) -> None:
     elif code != 0 or retry:
         sleep_until(now() + RETRY, f"{what} not finished (exit {code}); retrying later")
     else:
-        sleep_until(now() + FALLBACK, f"{what} stopped with no reset time given; sleeping")
+        sleep_until(now() + WAKE, f"{what} stopped with no reset time given; sleeping")
 
 
 def running() -> bool:

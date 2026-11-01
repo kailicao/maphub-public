@@ -12,12 +12,19 @@ needs the host computer):
     python scorer/arxiv_snapshot.py merge OUT                   # on the host, the driver stopped
     python scorer/arxiv_snapshot.py missing OUT TABLES > late.json   # papers backfills missed
     python scorer/arxiv_snapshot.py listed OUT TABLES FIRST LAST > rescore.json   # tables to rescore
+    python scorer/arxiv_snapshot.py coverage OUT [YYYY-MM ...]   # how complete it is before 2007
 
-Instead of `merge` by hand, OUT can be left in .cache/arxiv-snapshot/ on the host: the next
-backfill merges it, once. `missing` lists the papers of tabled past listings that are in no
-table, for `daily_table.py --late late.json`, which scores them and adds each to its table;
+Instead of `merge` by hand, OUT can be copied into .cache/arxiv-snapshot/ on the host, with the
+driver stopped: the next backfill merges it, once. `missing` lists the papers of tabled past
+listings that are in no table, for `daily_table.py --late late.json`, which scores them and adds
+each to its table;
 `listed` gives the papers of a range of tables, for `daily_table.py --rescore rescore.json`,
-which scores them again for the columns served (after a portfolio changed, say).
+which scores them again for the columns served (after a portfolio changed, say). `coverage`
+checks how complete the snapshot is where nothing else has been checked (RESULTS.md, Limits): for
+each month given (by default one each of 2006, 2003, 1999, 1995 and 1992), the astro-ph papers
+whose ID carries that month, against the month's total on arXiv's own listing page, and, before
+April 2007, when astro-ph numbered its papers astro-ph/YYMMNNN, the numbers missing up to the
+month's highest. It needs no seat usage, only OUT and one page from arXiv per month.
 
 `convert` keeps the papers of the OAI-PMH sets of the listings in the configuration log
 (physics:astro-ph, cs:cs:AI), cross-lists included as in a harvest, each written as
@@ -202,6 +209,50 @@ def listed(out: Path, tables: Path, first: str, last: str) -> list[dict]:
     return sorted(found.values(), key=lambda p: (p["listing"], p["id"]))
 
 
+COVERAGE_MONTHS = ["2006-06", "2003-06", "1999-06", "1995-06", "1992-06"]
+
+
+def coverage(out: Path, months: list[str]) -> None:
+    """The snapshot's astro-ph papers of each month against arXiv's listing page, and the gaps in
+    astro-ph's own numbering before April 2007 (a missing number is a paper the snapshot lacks).
+    Both count papers by the month in their ID, as the listing pages do; a paper submitted on a
+    month's last day may carry the next month's ID, so the neighbouring months' files are read too."""
+    import urllib.request
+    folder = out / T.oai_set("astro-ph").replace(":", "_")
+
+    def shift(month: str, by: int) -> str:
+        n = int(month[:4]) * 12 + int(month[5:]) - 1 + by
+        return f"{n // 12}-{n % 12 + 1:02d}"
+
+    print("month    snapshot  arXiv's listing  astro-ph/YYMMNNN: highest, missing")
+    for month in months:
+        yymm, papers = month[2:4] + month[5:7], {}
+        for m in (shift(month, -1), month, shift(month, 1)):
+            path = folder / f"{m}.jsonl"
+            for p in (T.cache_records(path) if path.exists() else []):
+                old = re.fullmatch(r"[a-z-]+(?:\.[A-Z]{2})?/(\d{4})(\d{3})", p["id"])
+                new = re.fullmatch(r"(\d{4})\.\d{4,5}", p["id"])
+                if (old or new) and (old or new).group(1) == yymm:
+                    papers[p["id"]] = p
+        try:
+            req = urllib.request.Request(f"https://arxiv.org/list/astro-ph/{month}?skip=0&show=25",
+                                         headers={"User-Agent": T.user_agent()})
+            page = urllib.request.urlopen(req, timeout=60).read().decode("utf-8", "replace")
+            m = re.search(r"Total of ([\d,]+) entries", page)
+            listed = m.group(1).replace(",", "") if m else "?"
+        except OSError as e:
+            listed = f"? ({e.__class__.__name__})"
+        gaps, top = "", ""
+        if month < "2007-04":
+            stem = "astro-ph/" + yymm
+            nums = {int(i[len(stem):]) for i in papers if i.startswith(stem)}
+            if nums:
+                miss = sorted(set(range(1, max(nums) + 1)) - nums)
+                top = str(max(nums))
+                gaps = f"{len(miss)}" + (f" ({', '.join(f'{stem}{n:03d}' for n in miss[:10])}{', …' if len(miss) > 10 else ''})" if miss else "")
+        print(f"{month}  {len(papers):8}  {listed:>15}  {top or '-'}, {gaps or '-'}")
+
+
 def morning_runs(tables: Path) -> set[str]:
     """Dates whose tables the morning runs wrote: from the first one on (Oct 6, 2026, the start of
     daily operation in the prototype), read from the configuration log's earliest entry."""
@@ -275,6 +326,9 @@ def main() -> None:
     r.add_argument("tables", type=Path)
     r.add_argument("first")
     r.add_argument("last")
+    v = sub.add_parser("coverage", help="the snapshot's astro-ph months against arXiv's listings, and gaps in old IDs")
+    v.add_argument("out", type=Path)
+    v.add_argument("months", nargs="*", default=COVERAGE_MONTHS)
     a = ap.parse_args()
     if a.step == "convert":
         convert(a.snapshot, a.out)
@@ -282,6 +336,8 @@ def main() -> None:
         check(a.out, a.tables)
     elif a.step == "listed":
         print(json.dumps(listed(a.out, a.tables, a.first, a.last), ensure_ascii=False, indent=1))
+    elif a.step == "coverage":
+        coverage(a.out, a.months)
     elif a.step == "missing":
         print(json.dumps(missing(a.out, a.tables), ensure_ascii=False, indent=1))
     else:

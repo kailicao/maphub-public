@@ -9,33 +9,39 @@ Design: DEVELOPMENT.md (section "Daily table").
     python scorer/daily_table.py --via api --batch   # Message Batches API (half price, slower)
     python scorer/daily_table.py 2025-03-04     # a past date: status-active columns only (the legacy survey)
     python scorer/daily_table.py 2026-10-05 --daily      # a past date scored as a daily run
+    python scorer/daily_table.py 2026-10-05 --meta-only  # a date's metadata fallback from its table, no scoring
+    python scorer/daily_table.py --late late.json        # score papers past listings missed (arxiv_snapshot.py missing)
+    python scorer/daily_table.py --rescore r.json        # score past tables' papers again (arxiv_snapshot.py listed)
+    python scorer/daily_table.py --rebuild-top           # rebuild complete years' top-paper summaries, no scoring
 
 Steps:
   1. Fetch. The arXiv API cannot query by announcement date, so the current
      listing's new submissions (no cross-lists, no replacements) are read from
      arXiv's RSS feed, and their metadata then comes from the arXiv API in one
-     query. A past listing is rebuilt by submission time, the window between two
-     14:00 ET deadlines that the listing covers, from a local cache of arXiv's
-     OAI-PMH records (harvested once by set and topped up; the arXiv API, one query
-     per category and listing, is the fallback). Papers held for
-     moderation are placed by submission, not announcement: they are missing
-     from the listing that announced them (4 of 345 on Oct 6, 2026) and
-     appear in their submission window's listing instead. The papers are saved in the work dir, so a rerun still
-     has them.
-  2. Score. Prompts v1 and v2 take two passes: one request per chunk of about 50 papers
-     scores every participant against their outlines (the joint outline: each
-     portfolio's title, Overview, and topics' Next and Expertise lines, cut at run
-     time); then each participant's papers with an outline score of `threshold`
-     or more are scored again against the full portfolio. Prompt v0 makes one
-     request per participant per chunk, with the instructions and papers first,
-     cached across participants.
+     query, or from the feed itself when the API refuses or lags. A past
+     listing is rebuilt by submission time, the window between two 14:00 ET
+     deadlines that the listing covers, from a local cache of arXiv's OAI-PMH
+     records (harvested once by set and topped up; the arXiv API, one query
+     per category and listing, is the fallback). Papers held for moderation
+     are placed by submission, not announcement: they are missing from the
+     listing that announced them (4 of 345 on Oct 6, 2026) and appear in their
+     submission window's listing instead. The papers are saved in the work
+     dir, so a rerun still has them.
+  2. Score. Prompts v1 and v2 take two passes: one request per chunk of about
+     50 papers scores every participant against their outlines (the joint
+     outline: each portfolio's title, Overview, and topics' Next and Expertise
+     lines, cut at run time); then each participant's papers with an outline
+     score of `threshold` or more are scored again against the full portfolio.
+     Prompt v0 makes one request per participant per chunk, with the
+     instructions and papers first, cached across participants.
   3. Write. One Parquet file per ID month, the viewer's index.json and
      empty.json (the dates without an announcement), and the top-paper
-     summaries of complete years (tables/top/). The
-     viewer takes titles and authors from DataCite; for the rare paper whose
-     DOI DataCite lacks, a <date>.meta.json beside the Parquet file holds them.
+     summaries of complete years (tables/top/). The viewer takes titles and
+     authors from DataCite; for the rare paper whose DOI DataCite lacks, a
+     <date>.meta.json beside the Parquet file holds them.
   4. Resume. Each request's scores are saved as they arrive (outline chunks,
-     then each participant's chunks); a rerun skips what is already saved. Parquet files are written only once all are done.
+     then each participant's chunks); a rerun skips what is already saved.
+     Parquet files are written only once all are done.
 
 Participants are the folders of maphub-portfolios/ that hold a portfolio.md;
 the folder name is the participant's pseudonym and column name.
@@ -102,7 +108,7 @@ BUSY_WAITS = (30, 60, 120, 120)  # seconds before retrying a 429 or 503 reply: u
 DATACITE_URL = "https://api.datacite.org/dois"  # where the viewer gets titles and authors
 DATACITE_BATCH = 100  # DOIs per DataCite search, as in the viewer
 # How the MapHub names itself to arXiv and DataCite; each MapHub sets its own in .env.
-USER_AGENT_DEFAULT = "MapHub/0.1 (MIDAS arXiv Preprint Hub)"
+USER_AGENT_DEFAULT = "MapHub (+https://github.com/kailicao/maphub-public; a copy: set MAPHUB_USER_AGENT)"
 user_agent = lambda: os.environ.get("MAPHUB_USER_AGENT") or USER_AGENT_DEFAULT
 
 FIRST_YEAR = 1991  # table folders are 3-year spans aligned with arXiv's first year
@@ -514,6 +520,7 @@ def fetch_past_listing_api(date: dt.date) -> list[dict]:
 # ends where the span begins, and forwards with one from its last harvest day.
 OAI_GROUPS = {"astro-ph", "cond-mat", "gr-qc", "hep-ex", "hep-lat", "hep-ph", "hep-th", "math-ph",
               "nlin", "nucl-ex", "nucl-th", "physics", "quant-ph"}  # archives in OAI's physics set
+# Every other archive (math, cs, q-bio, q-fin, stat, eess, econ) is an OAI set of its own, which oai_set gives.
 
 
 def oai_set(listing: str) -> str:
@@ -675,7 +682,7 @@ def survey_start(tables: Path) -> dt.date | None:
 
 
 
-def oai_month_check(listing: str, setspec: str) -> None:
+def oai_month_check(listing: str, setspec: str, near: dt.date | None = None) -> None:
     """Compare the OAI-PMH cache with arXiv's monthly listing page and warn when they differ.
 
     A month (its IDs, that is its announcements) is checked once the cache starts by its first
@@ -686,8 +693,10 @@ def oai_month_check(listing: str, setspec: str) -> None:
     in April to July). arXiv's page counts every entry, cross-lists included, as the set does
     (equal for astro-ph in Jul and Aug 2026 and cs.AI in Aug 2026). Advisory: one request per
     month, at most two months per call; a month whose page cannot be read is tried again on later
-    calls, up to CHECK_TRIES times. state.json keeps, per month, [cache count, arXiv's total] or
-    {"tries": n}."""
+    calls, up to CHECK_TRIES times. The months checked first are the latest on or before `near`,
+    the listing being rebuilt, so that a backfill checks the months it reaches (after a snapshot's
+    merge the cache starts in 1992, where earliest-first would spend the checks). state.json
+    keeps, per month, [cache count, arXiv's total] or {"tries": n}."""
     state_path = OAI_CACHE / "state.json"
     state = read_json(state_path) if state_path.exists() else {}
     span = state.get(setspec)
@@ -705,7 +714,9 @@ def oai_month_check(listing: str, setspec: str) -> None:
             todo.append(month)
         month = (month + dt.timedelta(days=32)).replace(day=1)
     folder = OAI_CACHE / setspec.replace(":", "_")
-    for month in todo[:2]:  # the earliest first: the backfill's front
+    if near is not None:  # the backfill's front: the latest months on or before the listing, then the rest
+        todo = sorted(m for m in todo if m <= near)[::-1] + [m for m in todo if m > near]
+    for month in todo[:2]:
         yymm, key = month.strftime("%y%m"), month.strftime("%Y-%m")
         ids = set()
         for back in range(lookback + 1):
@@ -748,7 +759,7 @@ def fetch_past_listing_oai(date: dt.date) -> list[dict]:
     for listing in LISTINGS:
         setspec = oai_set(listing)
         oai_cover(setspec, start, end)
-        oai_month_check(listing, setspec)
+        oai_month_check(listing, setspec, near=date)
         for month in months:
             path = OAI_CACHE / setspec.replace(":", "_") / f"{month}.jsonl"
             if path.exists():
@@ -1423,7 +1434,7 @@ def write_tables(tables: Path, date: dt.date, papers, scores: dict[str, dict[str
                 columns[who] = pa.array([was[at[n]] if n in at else scores[who][full_id(yymm, n)] for n in order], pa.uint8())
         elif path.exists():
             # Keep the columns of participants not scored in this run, e.g. the
-            # daily job's columns when the designer's own column is rescored for a past date.
+            # daily job's columns when one participant's column is rescored for a past date.
             old = pq.read_table(path)
             if sorted(old.column("id").to_pylist()) != order:
                 raise MapHubError(f"{path} lists different papers; not overwriting it")

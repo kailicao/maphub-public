@@ -1,0 +1,438 @@
+{
+ "10090": {
+  "title": "Gravitational Production of Non-minimally Coupled Vector Dark Matter in Warm Inflation",
+  "authors": [
+   "Phongsakorn Sereewat"
+  ],
+  "n_authors": 1,
+  "primary": "astro-ph.CO"
+ },
+ "10122": {
+  "title": "First detection of the forbidden rotational spectrum of H$_3^+$: JWST/MIRI observations of the shocked gas in HH 168",
+  "authors": [
+   "David A. Neufeld",
+   "Joel D. Green",
+   "Dan M. Watson"
+  ],
+  "n_authors": 4,
+  "primary": "astro-ph.GA"
+ },
+ "10132": {
+  "title": "Classical Cepheids in the 4MOST era I: Methodology for 4MOST variable stars and NLTE abundance gradients in the Milky Way",
+  "authors": [
+   "R. Albarracín",
+   "M. Bergemann",
+   "N. Storm"
+  ],
+  "n_authors": 12,
+  "primary": "astro-ph.GA"
+ },
+ "12416": {
+  "title": "Parker Solar Probe Flies Through the Sun's Magnetic Poles Near 10 Solar Radii",
+  "authors": [
+   "Yeimy J. Rivera",
+   "Adam J. Finley",
+   "Samuel T. Badman"
+  ],
+  "n_authors": 21,
+  "primary": "astro-ph.SR"
+ },
+ "12448": {
+  "title": "Revisiting the Einstein Cross with X-shooter spectra: New estimates of accretion disk parameters and broad emission line profiles from microlensing",
+  "authors": [
+   "R. Jerez-Nicurcar",
+   "A. Esteban-Gutiérrez",
+   "V. Motta"
+  ],
+  "n_authors": 4,
+  "primary": "astro-ph.GA"
+ },
+ "12470": {
+  "title": "The Connection between Halo Assembly History and the Stellar Distribution II: A Radially Stratified Fossil Record of Past Halo Mass",
+  "authors": [
+   "Shuo Xu",
+   "Song Huang",
+   "Conghao Zhou"
+  ],
+  "n_authors": 5,
+  "primary": "astro-ph.GA"
+ },
+ "12478": {
+  "title": "AuDiR: Diagnosing Audio Reasoning with Rule and Percept Interventions",
+  "authors": [
+   "Chengwei Wei",
+   "Yi Ma",
+   "Nancy F. Chen"
+  ],
+  "n_authors": 3,
+  "primary": "cs.AI"
+ },
+ "12496": {
+  "title": "Long before plunge: Uncovering intermediate-mass black holes through their inspiralling compact object companions with LISA",
+  "authors": [
+   "Jean Maurice Meus",
+   "Christian Chapman-Bird",
+   "Alberto Vecchio"
+  ],
+  "n_authors": 3,
+  "primary": "astro-ph.HE"
+ },
+ "12504": {
+  "title": "ALMA detection of continuum emission from GQ Lup B",
+  "authors": [
+   "Pietro Pirola",
+   "Stefano Facchini",
+   "Gabriele Cugno"
+  ],
+  "n_authors": 12,
+  "primary": "astro-ph.EP"
+ },
+ "12517": {
+  "title": "Binary pulsar studies with multi-wavelength sky surveys. II. Companion star follow ups",
+  "authors": [
+   "R. P. Mignani",
+   "C. Pallanca",
+   "V. Testa"
+  ],
+  "n_authors": 4,
+  "primary": "astro-ph.HE"
+ },
+ "12540": {
+  "title": "Long-term average collision frequencies between two bodies undergoing Lidov-Kozai evolution",
+  "authors": [
+   "Youpeng Liang",
+   "Xiaodong Liu"
+  ],
+  "n_authors": 2,
+  "primary": "astro-ph.EP"
+ },
+ "12543": {
+  "title": "Kinematic Signatures of Stellar Flybys in Protoplanetary Discs",
+  "authors": [
+   "Vasundhara Prasad",
+   "Cristiano Longarini",
+   "Carolin N. Kimmig"
+  ],
+  "n_authors": 4,
+  "primary": "astro-ph.EP"
+ },
+ "12552": {
+  "title": "SciMARS: Multi-Agent Recursive Self-Improvement for Closed-Loop Scientific Discovery",
+  "authors": [
+   "Weimin Wu",
+   "Han Liu"
+  ],
+  "n_authors": 2,
+  "primary": "cs.AI"
+ },
+ "12556": {
+  "title": "BAO and Type Ia Supernovae in LTB Cosmology: Constraints on Radial Inhomogeneity and Acoustic-Ruler Evolution",
+  "authors": [
+   "Myrto Magklara",
+   "Leandros Perivolaropoulos"
+  ],
+  "n_authors": 2,
+  "primary": "astro-ph.CO"
+ },
+ "12560": {
+  "title": "The Neptunian ridge depends on the choice of linear or logarithmic period",
+  "authors": [
+   "Kaiming Cui",
+   "David J. Armstrong"
+  ],
+  "n_authors": 2,
+  "primary": "astro-ph.EP"
+ },
+ "12580": {
+  "title": "A Many-Shapes framework for Galactic Cosmic Rays",
+  "authors": [
+   "Paolo Lipari"
+  ],
+  "n_authors": 1,
+  "primary": "astro-ph.HE"
+ },
+ "12581": {
+  "title": "The compositional link between rocky exoplanets and their host stars is consistent with Earth-like devolatilization",
+  "authors": [
+   "Yared Reinarz",
+   "Lorena Acuña-Aguirre",
+   "Haiyang S. Wang"
+  ],
+  "n_authors": 3,
+  "primary": "astro-ph.EP"
+ },
+ "12594": {
+  "title": "Investigating the timescales traced by dynamical ages in young stellar systems",
+  "authors": [
+   "Isabella Armstrong",
+   "Alison Sills",
+   "Claude Cournoyer-Cloutier"
+  ],
+  "n_authors": 3,
+  "primary": "astro-ph.SR"
+ },
+ "12595": {
+  "title": "The Edge of the Warm Corona in Active Galactic Nuclei",
+  "authors": [
+   "Parikshit Partha Biswas",
+   "Agata Różańska",
+   "Debora Lančová"
+  ],
+  "n_authors": 7,
+  "primary": "astro-ph.HE"
+ },
+ "12623": {
+  "title": "Three-dimensional radiative transfer modeling of the scattering polarization in the solar H$α$ line",
+  "authors": [
+   "Jaume Jaume Bestard",
+   "Jiri Stepan",
+   "Javier Trujillo Bueno"
+  ],
+  "n_authors": 3,
+  "primary": "astro-ph.SR"
+ },
+ "12635": {
+  "title": "Beyond Sunny Skies: Using Large Language Models to Predict Urban Traffic in Adverse Weather",
+  "authors": [
+   "Zhu Xiao",
+   "Kuan Feng",
+   "Tong Li"
+  ],
+  "n_authors": 7,
+  "primary": "cs.AI"
+ },
+ "12637": {
+  "title": "The Swift/UVOT Observation Campaign of Comet C/2013 US10 (Catalina) and Near-nucleus UV Excess",
+  "authors": [
+   "Shawn Oset",
+   "Zexi Xing",
+   "John Wm. Noonan"
+  ],
+  "n_authors": 5,
+  "primary": "astro-ph.EP"
+ },
+ "12640": {
+  "title": "TrialDesignBench: Benchmarking Language Models for Phase-I Trial Design Against Clinical Knowledge",
+  "authors": [
+   "Yihan Hank Tang",
+   "Peng Yang",
+   "Jiayi Xin"
+  ],
+  "n_authors": 8,
+  "primary": "cs.AI"
+ },
+ "12655": {
+  "title": "Testing Models of Disk Formation and Gravito-Viscous Evolution Against Observations of Young Protoplanetary Disks",
+  "authors": [
+   "Fabiola Antonietta Gerosa",
+   "Paola Pinilla",
+   "Eduard I. Vorobyov"
+  ],
+  "n_authors": 4,
+  "primary": "astro-ph.EP"
+ },
+ "12660": {
+  "title": "GRB 241030A: A fallback-accreting magnetar description of the early X-ray emission",
+  "authors": [
+   "Nissim Fraija",
+   "Simone Dichiara",
+   "Antonio Galván"
+  ],
+  "n_authors": 3,
+  "primary": "astro-ph.HE"
+ },
+ "12675": {
+  "title": "Interpretability Is Not Model-Specific",
+  "authors": [
+   "Marcus Armstrong",
+   "Navid Ayoobi",
+   "Pradham Mummaleti"
+  ],
+  "n_authors": 5,
+  "primary": "cs.AI"
+ },
+ "12704": {
+  "title": "Ångström Exponent Calculation Using Wide-Field Stellar Photometry",
+  "authors": [
+   "Shefali Negi",
+   "Jan Ebr",
+   "Sergey Karpov"
+  ],
+  "n_authors": 4,
+  "primary": "astro-ph.IM"
+ },
+ "12734": {
+  "title": "The Cool Circumgalactic Echo of the Stellar-to-Halo Mass Relatio",
+  "authors": [
+   "Zeyu Chen",
+   "Enci Wang",
+   "Huiyuan Wang"
+  ],
+  "n_authors": 13,
+  "primary": "astro-ph.GA"
+ },
+ "12762": {
+  "title": "Sage-Taiyi: A Metacognitive Architecture for Scientific Discovery",
+  "authors": [
+   "Weida Wang",
+   "Benteng Chen",
+   "Yigeng Jiang"
+  ],
+  "n_authors": 90,
+  "primary": "cs.AI"
+ },
+ "12772": {
+  "title": "Gravitational waves and the exit from de Sitter in Inflation without an Inflaton",
+  "authors": [
+   "Daniele Bertacca",
+   "Raul Jimenez",
+   "Sabino Matarrese"
+  ],
+  "n_authors": 5,
+  "primary": "astro-ph.CO"
+ },
+ "12775": {
+  "title": "LogCDM: Interpretable Log Anomaly Detection via Behavioral Graph Drift and Adaptive Signal Fusion",
+  "authors": [
+   "Suryansh Talukdar",
+   "Taha Sarwat",
+   "Jin Soung Yoo"
+  ],
+  "n_authors": 3,
+  "primary": "cs.AI"
+ },
+ "12787": {
+  "title": "MarsNet: Learning the Martian Atmosphere from Observations Alone",
+  "authors": [
+   "Sebastian Mengwall",
+   "J. Michael Battalio"
+  ],
+  "n_authors": 2,
+  "primary": "astro-ph.EP"
+ },
+ "12792": {
+  "title": "Coupled dark energy and apparent phantom crossing: a potential-independent lower bound",
+  "authors": [
+   "Domenico Sapone",
+   "Esteban Arratia"
+  ],
+  "n_authors": 2,
+  "primary": "astro-ph.CO"
+ },
+ "12811": {
+  "title": "NS 1987A: A Potential Probe of Crustal Superfluidity with Future X-ray Observations",
+  "authors": [
+   "Akira Dohi",
+   "Keita Izumi",
+   "Asuka Ito"
+  ],
+  "n_authors": 7,
+  "primary": "astro-ph.HE"
+ },
+ "12816": {
+  "title": "Automated Knowledge Acquisition Pipeline for Disassembly Instructions: A Comparison of NLP and Generative AI Frameworks",
+  "authors": [
+   "Tim Schnieders",
+   "Tareq Maximilian Gabriel Ahrari",
+   "Oliver Petrovic"
+  ],
+  "n_authors": 4,
+  "primary": "cs.AI"
+ },
+ "12819": {
+  "title": "Simulation of a Jovian Planet Undergoing Gas Accretion",
+  "authors": [
+   "Fabian Menezes"
+  ],
+  "n_authors": 1,
+  "primary": "astro-ph.EP"
+ },
+ "12825": {
+  "title": "MaxIM: Maximally Informative Incremental Summarization via Reinforcement Learning",
+  "authors": [
+   "Jihwan Jeong",
+   "Guy Tennenholtz",
+   "Yinlam Chow"
+  ],
+  "n_authors": 5,
+  "primary": "cs.AI"
+ },
+ "12841": {
+  "title": "Joint Gaia-Hipparcos astrometry, RV, and Imaging posteriors from the G23H Hipparcos sample",
+  "authors": [
+   "William Thompson",
+   "Dori Blakely",
+   "Alexandre Bouchard-Côté"
+  ],
+  "n_authors": 20,
+  "primary": "astro-ph.EP"
+ },
+ "12845": {
+  "title": "AGN Feedback Turbulence in Cool-core Clusters: Evidence from XRISM",
+  "authors": [
+   "Congyao Zhang",
+   "Eugene Churazov",
+   "Irina Zhuravleva"
+  ],
+  "n_authors": 9,
+  "primary": "astro-ph.HE"
+ },
+ "12846": {
+  "title": "Forward modeling linear variable filter data: High resolution PAH and Paschen-$α$ maps from SPHEREx",
+  "authors": [
+   "Andrew K. Saydjari",
+   "Connor Hainje",
+   "Benjamin Dodge"
+  ],
+  "n_authors": 6,
+  "primary": "astro-ph.GA"
+ },
+ "12849": {
+  "title": "The Tierras Observatory: Ultra-Precise Photometry for Characterizing Exoplanets and Their Host Stars",
+  "authors": [
+   "Juliana García-Mejía",
+   "Patrick Tamburo",
+   "David Charbonneau"
+  ],
+  "n_authors": 12,
+  "primary": "astro-ph.EP"
+ },
+ "12860": {
+  "title": "Search for a Dispersion Measure Excess Toward Nearby Galaxy Halos Using Fast Radio Bursts from the Second CHIME/FRB Baseband Catalog",
+  "authors": [
+   "Affan Khadir",
+   "Ayush Pandhi",
+   "Jason Hessels"
+  ],
+  "n_authors": 26,
+  "primary": "astro-ph.GA"
+ },
+ "12861": {
+  "title": "Little Red Dots from Primordial Black Holes: Non-Gaussianity and Accretion Evade $μ$-Distortion Constraints",
+  "authors": [
+   "Shyam Balaji",
+   "Bryce Cyr",
+   "Sarah R. Geller"
+  ],
+  "n_authors": 7,
+  "primary": "astro-ph.CO"
+ },
+ "12865": {
+  "title": "Shortcuts and Boundaries: Verifiable RL Misalignment and Contextual Safety Learning",
+  "authors": [
+   "Xinjie Shen"
+  ],
+  "n_authors": 1,
+  "primary": "cs.AI"
+ },
+ "12881": {
+  "title": "The Brown Dwarf Desert is a Mass-Ratio Desert: Astrometric Demographics of 63,254 Stars",
+  "authors": [
+   "William Thompson",
+   "Alexandre Bouchard-Côté",
+   "Dori Blakely"
+  ],
+  "n_authors": 22,
+  "primary": "astro-ph.EP"
+ }
+}

@@ -585,12 +585,20 @@ function readTopHash(dates) {
   return { who: params.get("p"), also, from, to, n };
 }
 
-// Every visible participant who has a column in the latest table, active ones first.
+// Every visible participant who has a column in the latest table with papers, active ones first.
+// The latest table can be empty (a holiday, listed in empty.json), and an empty table's rows
+// name no columns, so the days are read newest first, those with an announcement before the
+// others, until one has rows; without this, the participant list was empty after a holiday.
 async function topPeople(files, dates) {
-  const latest = await Promise.all(files[dates.at(-1)].map(readTable));
-  const columns = [...new Set(latest.flatMap((t) => t.rows.length ? Object.keys(t.rows[0]) : []))]
-    .filter((k) => k !== "id" && !roster.hidden.includes(k));
-  return columns.sort((a, b) => (isActive(b) - isActive(a)) || a.localeCompare(b));
+  const newest = [...dates].reverse();
+  const order = [...newest.filter((d) => !noAnnouncement.has(d)), ...newest.filter((d) => noAnnouncement.has(d))];
+  for (const date of order) {
+    const tables = await Promise.all(files[date].map(readTable));
+    const columns = [...new Set(tables.flatMap((t) => t.rows.length ? Object.keys(t.rows[0]) : []))]
+      .filter((k) => k !== "id" && !roster.hidden.includes(k));
+    if (columns.length) return columns.sort((a, b) => (isActive(b) - isActive(a)) || a.localeCompare(b));
+  }
+  return [];
 }
 
 async function mainTop(files, dates) {
@@ -668,17 +676,15 @@ async function mainTop(files, dates) {
   // Read each day's table, a few days at a time, keeping the participant's
   // scores and those of the participants shown beside.
   const scored = []; // {id, file, yymm, date, score, others: {who: score}}
-  let done = 0;
+  // The days are read oldest first, so the year shown counts up to the range's last.
   const status = $("status");
-  const progress = () => {
-    status.textContent = `Reading ${done} of ${toRead.length} days` + (toRead.length < range.length ? ` (of ${range.length} in the range; the others cannot reach the top ${query.n})…` : "…");
-  };
-  progress();
+  const progress = (date) => { status.textContent = `Reading the tables of ${date.slice(0, 4)}…`; };
+  progress(toRead[0] ?? range[0]);
   try {
     const queue = toRead.flatMap((date) => files[date].map((file) => ({ date, file })));
-    const left = Object.fromEntries(toRead.map((date) => [date, files[date].length])); // files still to read, per date
     const worker = async () => {
       for (let job; (job = queue.shift());) {
+        progress(job.date);
         const { yymm, rows } = await readTable(job.file);
         for (const row of rows) {
           if (row[query.who] != null) {
@@ -686,7 +692,6 @@ async function mainTop(files, dates) {
             scored.push({ id: fullId(yymm, row.id), file: job.file, yymm, date: job.date, score: Number(row[query.who]), others });
           }
         }
-        if (--left[job.date] === 0) { done++; progress(); } // a date counts once, when its last file is read
       }
     };
     await Promise.all(Array.from({ length: 6 }, worker));

@@ -102,7 +102,7 @@ def run(*args: str, watch_morning: bool = False) -> tuple[int, str]:
             out.write(line)
             out.flush()
             lines.append(line)
-            if watch_morning and morning_due() and not YIELD.exists():
+            if watch_morning and due_now() and not YIELD.exists():
                 YIELD.touch()
                 log("the morning listing is due: the backfill stops after this listing")
         code = proc.wait()
@@ -151,6 +151,17 @@ def listing_done(day: dt.date) -> bool:
 def morning_due() -> bool:
     t = now()
     return t.weekday() < 5 and t.time() >= MORNING and not listing_done(t.date())
+
+
+def due_now() -> bool:
+    """morning_due() for the check after each line a run prints: a failed read of
+    index.json counts as not due (the next line checks again) instead of ending the
+    driver, which would cut the run off before it commits its table."""
+    try:
+        return morning_due()
+    except (OSError, ValueError) as e:
+        log(f"could not check for the morning listing ({e}); checking again on the next line")
+        return False
 
 
 def next_morning() -> dt.datetime:

@@ -385,16 +385,25 @@ SILENT_MONTHS = 12  # months without a paper in any surveyed listing that mark t
 def categories_begun(day: dt.date) -> bool:
     """Whether the surveyed listings had begun by the month of `day`, from arXiv's monthly
     listing pages (one request per listing): yes as soon as one shows a paper in that month or
-    in the SILENT_MONTHS - 1 before it, or when a page cannot be read (never end the survey
-    on a failure); no only when every listing shows none in all of them."""
+    in the SILENT_MONTHS - 1 before it; no only when every listing shows none in all of them.
+    When a page cannot be read and none shows a paper, the answer is unknown: raise RunError,
+    so that this run stops before scoring `day` and the next run asks again. Answering yes
+    would never end the survey on a failure, but would backfill a month of empty listings
+    before the categories began and record that month as the survey's start."""
     listings = dtab.load_config(ROOT / "config-log.json", dt.datetime.now(dtab.EASTERN).date())["listings"]
     month = day.replace(day=1)
+    unread = []
     for _ in range(SILENT_MONTHS):
         for listing in listings:
             total = dtab.listing_month_total(listing, month)
-            if total is None or total > 0:
+            if total is None:
+                unread.append(f"{listing} {month:%Y-%m}")
+            elif total > 0:
                 return True
         month = (month - dt.timedelta(days=1)).replace(day=1)
+    if unread:
+        raise RunError(f"could not read arXiv's monthly listing pages ({', '.join(unread)}) to check whether "
+                       f"the surveyed categories had begun by {day:%Y-%m}; the next run checks again")
     return False
 
 

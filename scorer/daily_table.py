@@ -242,11 +242,17 @@ def log(msg: str) -> None:
     print(msg, file=sys.stderr, flush=True)
 
 
-def write_json(path: Path, data) -> None:
+def write_text(path: Path, text: str) -> None:
+    """Write a file whole, then rename it into place: a reader running at the same time
+    (the driver checks index.json after every line a backfill prints) never sees half of it."""
     path.parent.mkdir(parents=True, exist_ok=True)
     tmp = path.with_suffix(path.suffix + ".tmp")
-    tmp.write_text(json.dumps(data, indent=1, ensure_ascii=False) + "\n", encoding="utf-8")
+    tmp.write_text(text, encoding="utf-8")
     os.replace(tmp, path)
+
+
+def write_json(path: Path, data) -> None:
+    write_text(path, json.dumps(data, indent=1, ensure_ascii=False) + "\n")
 
 
 def read_json(path: Path):
@@ -1357,7 +1363,7 @@ def write_index(tables: Path, date: dt.date | None, yymms: list[str]) -> None:
         index[yymm] = [e for _, e in sorted(entries, key=lambda pair: pair[0])]
     # One folder per line keeps the file readable and its diffs small.
     lines = [f" {json.dumps(k)}: {json.dumps(v)}" for k, v in index.items()]
-    (tables / "index.json").write_text("{\n" + ",\n".join(lines) + "\n}\n", encoding="utf-8")
+    write_text(tables / "index.json", "{\n" + ",\n".join(lines) + "\n}\n")
 
 
 def scored_elsewhere(tables: Path, date: dt.date, papers) -> set[str]:
@@ -1576,10 +1582,9 @@ def day_top(tables: Path, date: dt.date) -> dict[str, dict]:
 
 
 def save_top(path: Path, data: dict) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
     # One date per line keeps the file readable and its diffs small.
     lines = [f" {json.dumps(d)}: {json.dumps(data[d], separators=(',', ':'))}" for d in sorted(data)]
-    path.write_text("{\n" + ",\n".join(lines) + "\n}\n", encoding="utf-8")
+    write_text(path, "{\n" + ",\n".join(lines) + "\n}\n")
 
 
 def year_complete(tables: Path, year: int) -> bool:

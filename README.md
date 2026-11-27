@@ -40,7 +40,7 @@ Each paper is scored from its title, authors and abstract against a participant'
 | 30 | The subject probably won't cite it, but it may broaden their view |
 | 0 | Worth a glance at the title, but reading the abstract is probably not worth their time |
 
-The anchors guide the model; they are not calibrated probabilities, so scores rank papers within a column and a day best. Most papers score low for most participants: in the same sample, 97% of all scores, cs.AI included, are below 30, and 0.2% of all scores are 60 or above. In a blind rating study (three raters: the maintainer for three columns, and a member each of two other participants for those columns; [DEVELOPMENT.md, Measurements](DEVELOPMENT.md#stability-and-quality)), reading a listing in score order found about 70% of a rater's top 5% of papers within its top tenth, against about a third with a word-matching baseline. A research note on MapHub and this study is published in Research Notes of the AAS (10, 329; [doi:10.3847/2515-5172/aebf5c](https://doi.org/10.3847/2515-5172/aebf5c); [arXiv:2611.07174](https://arxiv.org/abs/2611.07174)). Low scores come from the outline pass, and are coarse; scores that matter come from the full portfolio. There are no explanations for individual scores. Scores are AI-generated and can be wrong: they are pointers to papers and people, not judgments of anyone's work.
+The anchors guide the model; they are not calibrated probabilities, so scores rank papers within a column and a day best. Most papers score low for most participants: in the same sample, 97% of all scores, cs.AI included, are below 30, and 0.2% of all scores are 60 or above. In a blind rating study (three raters: the maintainer for three columns, and a member each of two other participants for those columns; [DEVELOPMENT.md, Measurements](DEVELOPMENT.md#stability-and-quality)), reading a listing in score order found about 70% of a rater's top 5% of papers within its top tenth, against about a third with a word-matching baseline. A research note on MapHub and this study is published in Research Notes of the AAS (10, 329; [doi:10.3847/2515-5172/aebf5c](https://doi.org/10.3847/2515-5172/aebf5c); [ADS](https://ui.adsabs.harvard.edu/abs/2026RNAAS..10..329C); [arXiv:2611.07174](https://arxiv.org/abs/2611.07174)). Low scores come from the outline pass, and are coarse; scores that matter come from the full portfolio. There are no explanations for individual scores. Scores are AI-generated and can be wrong: they are pointers to papers and people, not judgments of anyone's work.
 
 ## What participants agree to
 
@@ -101,7 +101,7 @@ In short (the details are in [RUNNING.md, Setting up a copy](RUNNING.md#setting-
 3. **Set up the portfolios** from `portfolios-template/`: a private repository of their own, or, if your participants agree to public portfolios, a folder of your copy.
 4. **Make the page yours:** the viewer's wording, colors and icons, this README and `CLAUDE.md`.
 5. **Publish** the viewer on GitHub Pages.
-6. **Run it** each morning after arXiv's 20:00 ET announcement, from one host computer, through Claude Code on a Claude subscription whose terms allow this use, or through the Claude API. `CLAUDE.md` sets up the host computer. Once it works, `mh -d` can run the routine unattended on a computer that never sleeps.
+6. **Run it** each morning after arXiv's 20:00 ET announcement, from one host computer, through Claude Code on a Claude subscription whose terms allow this use, or through the Claude API. `CLAUDE.md` sets up the host computer. Once it works, `mh -d` can run the routine unattended on a computer that never sleeps; two settings in `.env` choose the time zone of its logs (`MAPHUB_TIMEZONE`) and how much they keep (`MAPHUB_LOG`).
 7. **Optionally, go back in time,** building a back catalog of earlier listings.
 
 Questions are welcome: kailicao@umich.edu.
@@ -119,7 +119,7 @@ Questions are welcome: kailicao@umich.edu.
 
 ---
 
-**In depth.** The sections below are for participants drafting a portfolio and for anyone who wants the details. This is version 0.11-pre, on the way to version 0.11 ([DEVELOPMENT.md, Versions](DEVELOPMENT.md#versions)); the repository's documents are listed in [Repository layout](#repository-layout).
+**In depth.** The sections below are for participants drafting a portfolio and for anyone who wants the details. This is version 0.11 ([DEVELOPMENT.md, Versions](DEVELOPMENT.md#versions)); the repository's documents are listed in [Repository layout](#repository-layout).
 
 ## The portfolio-drafting prompt
 

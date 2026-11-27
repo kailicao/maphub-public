@@ -235,3 +235,18 @@ table.top th.who span { font-weight: 600; color: var(--umich-blue); background: 
 .top-form label.also-who input { height: auto; }
 table.top th.who:not(.selected) span { font-weight: 600; color: var(--text-primary); }
 table.top th.who.inactive span { font-weight: 400; font-style: italic; color: var(--text-muted); }
+
+/* Top papers: the year picker, the lookup by arXiv ID and its result, and the export
+   links for the list as shown. */
+.top-form input#lookup-id { width: 13em; max-width: 100%; }
+.lookup { margin: 0 0 14px; max-width: 1200px; }
+.lookup:empty { display: none; }
+.lookup .status { margin-bottom: 6px; }
+.top-export { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; margin: 0 0 12px; }
+.top-export .export {
+  display: inline-flex; align-items: center; height: 30px; padding: 0 10px;
+  border: 1px solid var(--accent); border-radius: 6px; background: var(--surface-1);
+  color: var(--accent); font-weight: 600; text-decoration: none; cursor: pointer;
+}
+.top-export .export:hover { background: var(--accent); color: var(--surface-1); }
+.top-export .note { color: var(--text-muted); font-size: 12px; }

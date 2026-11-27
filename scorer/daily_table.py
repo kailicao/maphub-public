@@ -10,6 +10,7 @@ Design: DEVELOPMENT.md (section "Daily table").
     python scorer/daily_table.py 2025-03-04     # a past date: status-active columns only (the legacy survey)
     python scorer/daily_table.py 2026-10-05 --daily      # a past date scored as a daily run
     python scorer/daily_table.py 2026-10-05 --meta-only  # a date's metadata fallback from its table, no scoring
+    python scorer/daily_table.py --meta-only 1992-04-15..2007-04-02   # the same for a range (or a list, or @FILE)
     python scorer/daily_table.py --late late.json        # score papers past listings missed (arxiv_snapshot.py missing)
     python scorer/daily_table.py --rescore r.json        # score past tables' papers again (arxiv_snapshot.py listed)
     python scorer/daily_table.py --rebuild-top           # rebuild complete years' top-paper summaries, no scoring
@@ -207,6 +208,9 @@ class MapHubError(Exception):
     pass
 
 
+LIMIT_STOP = "Claude Code reports a usage limit"  # the one stop the driver reports itself, with the reset time
+
+
 class ScoringStopped(MapHubError):
     """A usage limit, or MAX_FAILS failed requests in a row: the run stops, and the next
     run resumes from the saved chunks."""
@@ -220,9 +224,9 @@ def request_failed(error) -> None:
     global _fails
     _fails += 1
     if USAGE_LIMIT.search(str(error)):
-        raise ScoringStopped("Claude Code reports a usage limit")
+        raise ScoringStopped(LIMIT_STOP)
     if _fails >= MAX_FAILS:
-        raise ScoringStopped(f"{_fails} requests failed in a row (a usage limit or an outage?)")
+        raise ScoringStopped(f"{_fails} requests failed in a row (an outage, or a usage limit Claude Code did not report?)")
 
 
 def request_ok() -> None:
@@ -240,6 +244,139 @@ class PartialScores(MapHubError):
 
 def log(msg: str) -> None:
     print(msg, file=sys.stderr, flush=True)
+
+
+# ------------------------------------------------------------- what the logs show
+# MAPHUB_LOG (environment or .env) sets what the logs of mh runs keep: "brief" (the default),
+# one line per event that matters; "full", every step, each request included; "off", no log
+# files (mh --status still shows the state, kept in .cache/driver/). In output that a log
+# writer reads (MAPHUB_LOGGED is set: the driver's runs, and mh runs started by hand), a line
+# that only one of the two logs keeps starts with a mark, which the writer removes: FULL_ONLY
+# for detail, which the terminal shows too; BRIEF_ONLY for the brief log's summary lines,
+# which the terminal does not show. Unmarked lines (warnings, errors, pushes) go everywhere.
+BRIEF_ONLY, FULL_ONLY = "\x01", "\x02"  # control characters that str.splitlines does not split on
+LOG_MODES = ("brief", "full", "off")
+
+
+def log_mode() -> str:
+    mode = os.environ.get("MAPHUB_LOG", "").strip().lower()
+    return mode if mode in LOG_MODES else "brief"
+
+
+def marked() -> bool:
+    return bool(os.environ.get("MAPHUB_LOGGED"))
+
+
+def detail(msg: str) -> None:
+    """A line for the full log and the terminal, not the brief log."""
+    log((FULL_ONLY if marked() else "") + msg)
+
+
+def in_brief(msg: str, file=None) -> None:
+    """A line for the brief log only (nothing when no log writer reads the output)."""
+    if marked():
+        print(BRIEF_ONLY + msg, file=file or sys.stdout, flush=True)
+
+
+def log_line(line: str, mode: str) -> str | None:
+    """What a log in `mode` keeps of one line of output (its mark removed), or None."""
+    if mode == "off":
+        return None
+    if line[:1] == BRIEF_ONLY:
+        return line[1:] if mode == "brief" else None
+    if line[:1] == FULL_ONLY:
+        return line[1:] if mode == "full" else None
+    return line
+
+
+def unmark_all(text: str) -> str:
+    """Output with every line's mark removed."""
+    return re.sub(f"(?m)^[{BRIEF_ONLY}{FULL_ONLY}]", "", text)
+
+
+def unmark(line: str) -> str:
+    return line[1:] if line[:1] in (BRIEF_ONLY, FULL_ONLY) else line
+
+
+class OutputSplitter:
+    """Splits a run's output as it arrives (chunks, not lines: a question such as "Commit and
+    push? [Y/n] " has no line end) into what the terminal shows, every line but the brief
+    log's own, and the complete lines a log in `mode` keeps."""
+
+    def __init__(self, mode: str):
+        self.mode, self.kind, self.line = mode, None, []
+
+    def feed(self, text: str) -> tuple[str, list[str]]:
+        shown, lines = [], []
+        for ch in text:
+            if self.kind is None:  # at a line's start
+                self.kind = ch if ch in (BRIEF_ONLY, FULL_ONLY) else ""
+                if self.kind:
+                    continue
+            if self.kind != BRIEF_ONLY:
+                shown.append(ch)
+            if ch == "\n":
+                kept = log_line(self.kind + "".join(self.line), self.mode)
+                if kept is not None:
+                    lines.append(kept)
+                self.kind, self.line = None, []
+            else:
+                self.line.append(ch)
+        return "".join(shown), lines
+
+    def cut(self) -> list[str]:
+        """End the line under way, for the log only, what follows starting a new line:
+        for a question waiting at the terminal ("Commit and push? [Y/n] "), whose answer is typed
+        there and never reaches the output, so that the next line does not join it."""
+        if not self.line:
+            return []
+        kept = log_line(self.kind + "".join(self.line), self.mode)
+        self.kind, self.line = None, []  # what follows the answer starts a line of its own
+        return [kept] if kept is not None else []
+
+    def end(self) -> list[str]:
+        """The last line, if the output did not end with a line end."""
+        _, lines = self.feed("\n") if self.line else ("", [])
+        return lines
+
+
+ZONE_NAMES = {"EST": "ET", "EDT": "ET", "CST": "CT", "CDT": "CT", "MST": "MT", "MDT": "MT",
+              "PST": "PT", "PDT": "PT", "AKST": "AKT", "AKDT": "AKT"}  # US zones: one name the year round
+# The zones ZONE_NAMES applies to, listed: other zones share the abbreviations (China Standard Time
+# and Cuba's are CST too, and Asia/Shanghai and America/Havana keep "CST").
+US_ZONES = {"America/New_York", "America/Detroit", "America/Indiana/Indianapolis", "America/Indiana/Marengo",
+            "America/Indiana/Petersburg", "America/Indiana/Vevay", "America/Indiana/Vincennes",
+            "America/Indiana/Winamac", "America/Indiana/Knox", "America/Indiana/Tell_City",
+            "America/Kentucky/Louisville", "America/Kentucky/Monticello", "America/Chicago",
+            "America/Menominee", "America/North_Dakota/Center", "America/North_Dakota/New_Salem",
+            "America/North_Dakota/Beulah", "America/Denver", "America/Boise", "America/Phoenix",
+            "America/Los_Angeles", "America/Anchorage", "America/Juneau", "America/Sitka",
+            "America/Metlakatla", "America/Yakutat", "America/Nome",
+            "US/Eastern", "US/Central", "US/Mountain", "US/Arizona", "US/Pacific", "US/Alaska",
+            "US/Michigan", "US/East-Indiana", "US/Indiana-Starke", "EST5EDT", "CST6CDT", "MST7MDT", "PST8PDT"}
+
+
+def display_zone() -> ZoneInfo:
+    """MAPHUB_TIMEZONE (environment or .env; default America/New_York): the zone of every time
+    the logs, the driver and mh --status show. Display only: arXiv's schedule is Eastern time."""
+    name = os.environ.get("MAPHUB_TIMEZONE", "").strip()
+    try:
+        return ZoneInfo(name) if name else EASTERN
+    except Exception:  # not a zone name: Eastern time, as without the setting
+        return EASTERN
+
+
+def shown(t: dt.datetime, day: bool = True) -> str:
+    """A time as the logs show it, in the display zone: "Thu Nov 19 02:53 ET" (day=False:
+    "02:53 ET"). A naive time is taken as Eastern time."""
+    if t.tzinfo is None:
+        t = t.replace(tzinfo=EASTERN)
+    zone = display_zone()
+    t = t.astimezone(zone)
+    name = t.tzname() or ""
+    if zone.key in US_ZONES:
+        name = ZONE_NAMES.get(name, name)
+    return (f"{t:%a %b} {t.day} " if day else "") + f"{t:%H:%M} {name}".rstrip()
 
 
 def write_text(path: Path, text: str) -> None:
@@ -307,7 +444,9 @@ def listings_text() -> str:
 def http_get(url: str, timeout: float = 60, busy_waits: tuple = BUSY_WAITS, tries: int = 3) -> bytes:
     """GET with retries. A busy server (429 Too Many Requests, 503 Service
     Unavailable) gets the waits in busy_waits, or the wait its Retry-After asks
-    for; other failures (a timeout, a lost connection) get `tries` quick tries."""
+    for; other failures (a timeout, a lost connection, a server error) get `tries`
+    quick tries. A request the server refuses as such (any other 4xx reply, such as
+    400 Bad Request) fails at once: asking again cannot help."""
     req = urllib.request.Request(url, headers={"User-Agent": user_agent()})
     quick, busy = 0, 0
     while True:
@@ -315,13 +454,15 @@ def http_get(url: str, timeout: float = 60, busy_waits: tuple = BUSY_WAITS, trie
             with urllib.request.urlopen(req, timeout=timeout) as resp:
                 return resp.read()
         except urllib.error.HTTPError as e:
+            if 400 <= e.code < 500 and e.code != 429:
+                raise MapHubError(f"GET {url} failed: {e}") from e
             if e.code not in (429, 503):
                 error = e
             elif busy < len(busy_waits):
                 after = (e.headers.get("Retry-After") or "").strip()
                 wait = min(int(after), 300) if after.isdigit() else busy_waits[busy]
                 busy += 1
-                log(f"  GET failed ({e}); the server is busy, retrying in {wait} s")
+                detail(f"  GET failed ({e}); the server is busy, retrying in {wait} s")
                 time.sleep(wait)
                 continue
             else:
@@ -331,7 +472,7 @@ def http_get(url: str, timeout: float = 60, busy_waits: tuple = BUSY_WAITS, trie
         quick += 1
         if quick == tries:
             raise MapHubError(f"GET {url} failed: {error}") from error
-        log(f"  GET failed ({error}); retrying")
+        detail(f"  GET failed ({error}); retrying")
         time.sleep(ARXIV_PAUSE * (quick + 1))
 
 
@@ -443,7 +584,7 @@ def fetch_metadata(ids: list[str], required: bool = True) -> dict[str, dict]:
         todo = [i for i in ids if i not in papers]
         if not todo:
             break
-        log(f"  arXiv API missed {len(todo)} papers; asking again")
+        detail(f"  arXiv API missed {len(todo)} papers; asking again")
     if todo and required:
         raise MapHubError(f"arXiv API returned no metadata for {', '.join(todo)}")
     return papers
@@ -493,8 +634,8 @@ def fetch_past_listing_api(date: dt.date) -> list[dict]:
     stamp = lambda t: t.strftime("%Y%m%d%H%M")
     # The API matches whole minutes; a paper at exactly 14:00 can land in either
     # listing, and is filtered below by its exact time.
-    log(f"Rebuilding the listing dated {date} from the arXiv API: submissions "
-        f"{start.astimezone(EASTERN):%a %Y-%m-%d %H:%M} to {end.astimezone(EASTERN):%a %Y-%m-%d %H:%M} ET")
+    detail(f"Rebuilding the listing dated {date} from the arXiv API: submissions "
+           f"{shown(start)} to {shown(end)}")
     found: dict[str, dict] = {}
     # One query per category: an OR of several categories loses results on
     # older dates (128 instead of several hundred for a 2025 listing).
@@ -515,7 +656,7 @@ def fetch_past_listing_api(date: dt.date) -> list[dict]:
     when = lambda p: dt.datetime.fromisoformat(p["submitted"].replace("Z", "+00:00"))
     papers = sorted((p for p in found.values() if listed_here(p) and start <= when(p) < end),
                     key=lambda p: p["id"])
-    log(f"  {len(found)} papers in the window, {len(papers)} with {listings_text()} as primary")
+    detail(f"  {len(found)} papers in the window, {len(papers)} with {listings_text()} as primary")
     return papers
 
 
@@ -558,14 +699,15 @@ def oai_record(rec) -> dict | None:
     }
 
 
-def oai_harvest(setspec: str, frm: dt.date, until: dt.date | None) -> int:
-    """Harvest a set's records changed from `frm` (to `until`, or today) into the cache."""
+def oai_harvest(setspec: str, frm: dt.date, until: dt.date | None, name: str | None = None) -> int:
+    """Harvest a set's records changed from `frm` (to `until`, or today) into the cache;
+    `name` is the listing the logs name (cs.AI rather than the set, cs:cs:AI)."""
     folder = OAI_CACHE / setspec.replace(":", "_")
     folder.mkdir(parents=True, exist_ok=True)
     params = {"verb": "ListRecords", "metadataPrefix": "arXivRaw", "set": setspec, "from": frm.isoformat()}
     if until:
         params["until"] = until.isoformat()
-    log(f"  harvesting {setspec} records changed {frm}–{until or 'today'} from arXiv OAI-PMH")
+    detail(f"  harvesting {name or setspec} records changed {frm}–{until or 'today'} from arXiv OAI-PMH")
     calls = count = 0
     by_month: dict[str, list[str]] = {}  # written once the piece is complete, so a cut leaves no broken line
     while True:
@@ -590,7 +732,7 @@ def oai_harvest(setspec: str, frm: dt.date, until: dt.date | None) -> int:
     for month, lines in by_month.items():
         with open(folder / f"{month}.jsonl", "a", encoding="utf-8") as out:
             out.write("\n".join(lines) + "\n")
-    log(f"    {count} records in {calls} requests")
+    detail(f"    {count} records in {calls} requests")
     return calls
 
 
@@ -605,7 +747,7 @@ def cache_records(path: Path):
                 log(f"  {path.name}, line {n}: not a complete record; skipped")
 
 
-def oai_cover(setspec: str, start: dt.datetime, end: dt.datetime) -> None:
+def oai_cover(setspec: str, start: dt.datetime, end: dt.datetime, name: str | None = None) -> None:
     """Make sure the cache holds every paper of `setspec` submitted in [start, end).
     The cache covers the records changed from a date ("from") to the day of its latest harvest
     ("harvested"); a paper submitted in the window may have changed any time since, so the
@@ -617,7 +759,7 @@ def oai_cover(setspec: str, start: dt.datetime, end: dt.datetime) -> None:
     state = read_json(state_path) if state_path.exists() else {}
     paused = state.get("paused_until")
     if paused and dt.datetime.now(dt.timezone.utc) < dt.datetime.fromisoformat(paused):
-        raise MapHubError(f"OAI-PMH rests after a failure until {paused[:16]} UTC")
+        raise MapHubError(f"OAI-PMH rests after a failure until {shown(dt.datetime.fromisoformat(paused))}")
     today = dt.datetime.now(dt.timezone.utc).date()
     need_from = start.date() - dt.timedelta(days=1)
     # a new cache covers nothing yet: the first piece goes back from today
@@ -633,7 +775,7 @@ def oai_cover(setspec: str, start: dt.datetime, end: dt.datetime) -> None:
             target = min(need_from, frm - dt.timedelta(days=OAI_EXTEND_DAYS))
             while frm > target:
                 lo = max(target, frm - piece)
-                oai_harvest(setspec, lo, frm - dt.timedelta(days=1))
+                oai_harvest(setspec, lo, frm - dt.timedelta(days=1), name)
                 frm = lo
                 span["from"] = frm.isoformat()
                 save()
@@ -643,16 +785,18 @@ def oai_cover(setspec: str, start: dt.datetime, end: dt.datetime) -> None:
         if harvested < today:
             while harvested < today:
                 hi = min(today, harvested + piece)
-                oai_harvest(setspec, harvested, None if hi == today else hi)
+                oai_harvest(setspec, harvested, None if hi == today else hi, name)
                 harvested = hi
                 span["harvested"] = harvested.isoformat()
                 save()
     except (MapHubError, ET.ParseError):
-        until = dt.datetime.now(dt.timezone.utc) + dt.timedelta(hours=OAI_PAUSE_HOURS)
-        state["paused_until"] = until.isoformat(timespec="minutes")
+        failed = dt.datetime.now(dt.timezone.utc)
+        state["paused_until"] = (failed + dt.timedelta(hours=OAI_PAUSE_HOURS)).isoformat(timespec="minutes")
+        state["paused_at"] = failed.isoformat(timespec="minutes")
         save()
         raise
-    state.pop("paused_until", None)
+    for key in ("paused_until", "paused_at", "rest_said"):
+        state.pop(key, None)
     save()
 
 
@@ -732,31 +876,30 @@ def oai_month_check(listing: str, setspec: str, near: dt.date | None = None) -> 
                     paper_id = record["id"]
                     if id_month(paper_id) == yymm:
                         ids.add(paper_id)
-        time.sleep(ARXIV_PAUSE)
-        try:
-            page = http_get(f"https://arxiv.org/list/{listing}/{key}?skip=0&show=25").decode("utf-8", "replace")
-            found = re.search(r"Total of ([\d,]+) entries", page)
-            if not found:
-                raise MapHubError("the page gave no total")
-        except Exception as e:  # advisory: never stop a backfill; try the month again later
+        # The same reading as the survey's end uses: a page saying "No updates for this time
+        # period" is a month with no papers (0), checked like any other.
+        total = listing_month_total(listing, month)
+        if total is None:  # advisory: never stop a backfill; try the month again later
             tries = (checked.get(key) or {}).get("tries", 0) + 1
             checked[key] = {"tries": tries}
-            log(f"  OAI-PMH check for {listing} {key} skipped ({e})" +
-                (f"; not tried again after {tries} tries" if tries >= CHECK_TRIES else "; tried again later"))
+            detail(f"  OAI-PMH check for {listing} {key} skipped (arXiv's monthly listing page could not be read)" +
+                   (f"; not tried again after {tries} tries" if tries >= CHECK_TRIES else "; tried again later"))
             continue
-        total = int(found.group(1).replace(",", ""))
         checked[key] = [len(ids), total]
-        if len(ids) != total:
-            log(f"Warning: the OAI-PMH cache holds {len(ids)} of arXiv's {total} {listing} entries for {key}; "
-                f"its listings may be incomplete")
+        if len(ids) < total:
+            log(f"Warning: the OAI-PMH cache of {listing} for {key}: {total - len(ids)} of {total} entries missing; "
+                f"the listings rebuilt from it may lack those papers (RUNNING.md, Running unattended, step 6)")
+        elif len(ids) > total:
+            log(f"Warning: the OAI-PMH cache of {listing} for {key} holds {len(ids)} entries, "
+                f"{len(ids) - total} more than arXiv's monthly listing page counts")
     write_json(state_path, state)
 
 
 def fetch_past_listing_oai(date: dt.date) -> list[dict]:
     """Rebuild a past listing's new submissions from the OAI-PMH cache by submission time."""
     start, end = listing_window(date)
-    log(f"Rebuilding the listing dated {date} from the arXiv OAI-PMH cache: submissions "
-        f"{start.astimezone(EASTERN):%a %Y-%m-%d %H:%M} to {end.astimezone(EASTERN):%a %Y-%m-%d %H:%M} ET")
+    detail(f"Rebuilding the listing dated {date} from the arXiv OAI-PMH cache: submissions "
+           f"{shown(start)} to {shown(end)}")
     found: dict[str, dict] = {}
     months = sorted({start.strftime("%Y-%m"), end.strftime("%Y-%m")})
     if (SNAPSHOT_DROP / "snapshot.json").exists():
@@ -764,7 +907,7 @@ def fetch_past_listing_oai(date: dt.date) -> list[dict]:
         arxiv_snapshot.merge(SNAPSHOT_DROP, in_run=True)
     for listing in LISTINGS:
         setspec = oai_set(listing)
-        oai_cover(setspec, start, end)
+        oai_cover(setspec, start, end, listing)
         oai_month_check(listing, setspec, near=date)
         for month in months:
             path = OAI_CACHE / setspec.replace(":", "_") / f"{month}.jsonl"
@@ -774,16 +917,57 @@ def fetch_past_listing_oai(date: dt.date) -> list[dict]:
     when = lambda p: dt.datetime.fromisoformat(p["submitted"].replace("Z", "+00:00"))
     papers = sorted((p for p in found.values() if listed_here(p) and start <= when(p) < end),
                     key=lambda p: p["id"])
-    log(f"  {len(papers)} papers with {listings_text()} as primary")
+    detail(f"  {len(papers)} papers with {listings_text()} as primary")
     return papers
 
 
+def oai_rest() -> tuple[dt.datetime, dt.datetime] | None:
+    """(the failure, the end of the rest) while OAI-PMH rests after a failed harvest, else None."""
+    state_path = OAI_CACHE / "state.json"
+    state = read_json(state_path) if state_path.exists() else {}
+    if not state.get("paused_until"):
+        return None
+    until = dt.datetime.fromisoformat(state["paused_until"])
+    if dt.datetime.now(dt.timezone.utc) >= until:
+        return None
+    failed = (dt.datetime.fromisoformat(state["paused_at"]) if state.get("paused_at")
+              else until - dt.timedelta(hours=OAI_PAUSE_HOURS))
+    return failed, until
+
+
+def say_rest(failed: dt.datetime, until: dt.datetime, error: str | None = None) -> None:
+    """Say that OAI-PMH rests, once per mh run (MAPHUB_RUN, which local_run.py sets; every
+    time without it), rather than for every listing the rest touches."""
+    state_path = OAI_CACHE / "state.json"
+    state = read_json(state_path) if state_path.exists() else {}
+    said = {"until": until.isoformat(timespec="minutes"), "run": os.environ.get("MAPHUB_RUN")}
+    if said["run"] and state.get("rest_said") == said:
+        return
+    if error:
+        log(f"OAI-PMH failed ({error}); it rests until {shown(until)}, and past listings come from "
+            f"the arXiv API until then")
+    else:
+        log(f"OAI-PMH rests until {shown(until)} after a failure at {shown(failed, day=False)}; "
+            f"past listings come from the arXiv API until then")
+    state["rest_said"] = said
+    write_json(state_path, state)
+
+
 def fetch_past_listing(date: dt.date) -> tuple[list[dict], str]:
-    """A past listing from the OAI-PMH cache, or from the arXiv API if OAI-PMH fails."""
+    """A past listing from the OAI-PMH cache, or from the arXiv API while OAI-PMH rests or if
+    it fails. The rest is checked first, so that a listing is not said to come from the cache
+    when the cache is not tried."""
+    if rest := oai_rest():
+        say_rest(*rest)
+        return fetch_past_listing_api(date), "arXiv API by submission time"
     try:
         return fetch_past_listing_oai(date), "arXiv OAI-PMH by submission time"
     except (MapHubError, ET.ParseError) as e:
-        log(f"  OAI-PMH failed ({e}); falling back to the arXiv API")
+        error = str(e.__cause__ or e)[:200]  # the cause, without the request's long URL
+        if rest := oai_rest():
+            say_rest(*rest, error=error)
+        else:
+            log(f"OAI-PMH failed ({error}); the listing dated {date} comes from the arXiv API")
         return fetch_past_listing_api(date), "arXiv API by submission time"
 
 
@@ -792,19 +976,19 @@ def get_papers(work: Path, date: dt.date | None) -> tuple[dt.date, list[dict]]:
     if date is not None:
         saved = work / date.isoformat() / "papers.json"
         if saved.exists():
-            log(f"Papers for {date}: loaded from {saved}")
+            detail(f"Papers for {date}: loaded from {saved}")
             return date, read_json(saved)
         if date < dt.datetime.now(EASTERN).date():
             papers, source = fetch_past_listing(date)
             if not papers:
-                log(f"  no new submissions in {listings_text()} for the listing dated {date}")
+                detail(f"  no new submissions in {listings_text()} for the listing dated {date}")
             start, end = listing_window(date)
             write_json(saved, papers)
             write_json(saved.with_name("window.json"),
                        {"source": source, "from_utc": start.isoformat(),
                         "to_utc": end.isoformat()})
             return date, papers
-    log(f"Fetching the current listing from {RSS_BASE + '+'.join(LISTINGS)}")
+    detail(f"Fetching the current listing from {RSS_BASE + '+'.join(LISTINGS)}")
     listing_date, rss = fetch_listing()
     ids = list(rss)
     if date is not None and date != listing_date:
@@ -814,7 +998,7 @@ def get_papers(work: Path, date: dt.date | None) -> tuple[dt.date, list[dict]]:
         )
     saved = work / listing_date.isoformat() / "papers.json"
     if saved.exists():  # the default date's papers were fetched by an earlier run
-        log(f"Papers for {listing_date}: loaded from {saved}")
+        detail(f"Papers for {listing_date}: loaded from {saved}")
         return listing_date, read_json(saved)
     if not ids:
         # arXiv announced nothing for this date (a holiday): the empty listing gets an
@@ -822,7 +1006,7 @@ def get_papers(work: Path, date: dt.date | None) -> tuple[dt.date, list[dict]]:
         log(f"Listing dated {listing_date}: no new submissions (no announcement: an arXiv holiday?)")
         write_json(saved, [])
         return listing_date, []
-    log(f"Listing dated {listing_date}: {len(ids)} new submissions; fetching metadata")
+    detail(f"Listing dated {listing_date}: {len(ids)} new submissions; fetching metadata")
     try:
         meta = fetch_metadata(ids, required=False)
     except MapHubError as e:
@@ -833,11 +1017,11 @@ def get_papers(work: Path, date: dt.date | None) -> tuple[dt.date, list[dict]]:
     if lacking := [i for i in ids if i not in meta]:
         # The API's index occasionally lags behind the listing (2610.09954 on Oct 8, 2026).
         if meta:
-            log(f"  taking {len(lacking)} papers from the RSS feed, which the API lacks: {', '.join(lacking)}")
+            detail(f"  taking {len(lacking)} papers from the RSS feed, which the API lacks: {', '.join(lacking)}")
         meta.update({i: rss[i] for i in lacking})
     papers = [meta[i] for i in ids if listed_here(meta[i])]
     if len(papers) < len(ids):
-        log(f"  dropped {len(ids) - len(papers)} papers whose primary category is elsewhere")
+        detail(f"  dropped {len(ids) - len(papers)} papers whose primary category is elsewhere")
     write_json(saved, papers)
     return listing_date, papers
 
@@ -1016,6 +1200,17 @@ def usage_dict(message) -> dict:
     }
 
 
+def job_name(n: int, total: int, who: str, k: int) -> str:
+    """A request in the logs: "[3/9] 25222 chunk 2", chunks numbered from 1, without the
+    count when the run has one request."""
+    return (f"[{n}/{total}] " if total > 1 else "") + f"{who} chunk {k + 1}"
+
+
+def outline_name(k: int, total: int) -> str:
+    """An outline request in the logs: "outline chunk 2/3", or "outline request" alone."""
+    return f"outline chunk {k + 1}/{total}" if total > 1 else "outline request"
+
+
 def score_direct(client, cfg, jobs, prefixes, portfolios, scores_dir) -> None:
     """One request at a time, chunk by chunk, so participants reuse the cached papers block."""
     create = client.beta.messages.create if cfg.get("fallbacks") else client.messages.create
@@ -1036,10 +1231,10 @@ def score_direct(client, cfg, jobs, prefixes, portfolios, scores_dir) -> None:
                 scores = {**got, **parse_scores(message, todo)}
             except PartialScores as e:
                 got.update(e.scores)
-                log(f"  [{n}/{len(jobs)}] {who} chunk {k}: attempt {attempt}: {e}; asking again for those")
+                detail(f"  {job_name(n, len(jobs), who, k)}: attempt {attempt}: {e}; asking again for those")
                 continue
             except (MapHubError, anthropic.APIConnectionError, anthropic.APIStatusError) as e:
-                log(f"  [{n}/{len(jobs)}] {who} chunk {k}: attempt {attempt} failed: {e}")
+                detail(f"  {job_name(n, len(jobs), who, k)}: attempt {attempt} failed: {e}")
                 if isinstance(e, anthropic.APIStatusError) and e.status_code < 500 and e.status_code != 429:
                     raise  # a bad request or credentials problem will not fix itself
                 request_failed(e)
@@ -1050,7 +1245,7 @@ def score_direct(client, cfg, jobs, prefixes, portfolios, scores_dir) -> None:
                 {"ids": [p["id"] for p in chunk], "scores": scores, "usage": usage,
                  "seconds": round(seconds, 1), "model": message.model, "prompt": cfg["prompt"]},
             )
-            log(f"  [{n}/{len(jobs)}] {who} chunk {k}: {len(scores)} scores, {seconds:.0f} s, "
+            detail(f"  {job_name(n, len(jobs), who, k)}: {len(scores)} scores, {seconds:.0f} s, "
                 f"tokens in {usage['input']} + cache write {usage['cache_write']} "
                 f"+ cache read {usage['cache_read']}, out {usage['output']}")
             break
@@ -1108,10 +1303,10 @@ def score_claude_code(cfg, jobs, prefixes, portfolios, scores_dir) -> None:
                     raise MapHubError("the claude command was not found; install Claude Code")
                 except PartialScores as e:
                     got.update(e.scores)
-                    log(f"  [{n}/{len(jobs)}] {who} chunk {k}: attempt {attempt}: {e}; asking again for those")
+                    detail(f"  {job_name(n, len(jobs), who, k)}: attempt {attempt}: {e}; asking again for those")
                     continue
                 except (MapHubError, json.JSONDecodeError, subprocess.TimeoutExpired) as e:
-                    log(f"  [{n}/{len(jobs)}] {who} chunk {k}: attempt {attempt} failed: {e}")
+                    detail(f"  {job_name(n, len(jobs), who, k)}: attempt {attempt} failed: {e}")
                     request_failed(e)
                     continue
                 request_ok()
@@ -1121,12 +1316,12 @@ def score_claude_code(cfg, jobs, prefixes, portfolios, scores_dir) -> None:
                      "seconds": round(seconds, 1), "model": cfg["model"], "prompt": cfg["prompt"], "via": "claude-code",
                      "api_equivalent_usd": round(cost, 6) if cost else None},
                 )
-                log(f"  [{n}/{len(jobs)}] {who} chunk {k}: {len(scores)} scores, {seconds:.0f} s, "
+                detail(f"  {job_name(n, len(jobs), who, k)}: {len(scores)} scores, {seconds:.0f} s, "
                     f"tokens in {usage['input']} + cache write {usage['cache_write']} "
                     f"+ cache read {usage['cache_read']}, out {usage['output']}")
                 break
             else:
-                log(f"  [{n}/{len(jobs)}] {who} chunk {k}: no usable reply after {SCORE_ATTEMPTS} tries; "
+                log(f"  {job_name(n, len(jobs), who, k)}: no usable reply after {SCORE_ATTEMPTS} tries; "
                     "left for the next run")
 
 
@@ -1212,11 +1407,11 @@ def score_outlines(cfg, via, chunks, portfolios, out_dir) -> None:
                     raise MapHubError("the claude command was not found; install Claude Code")
                 except PartialScores as e:
                     got.update(e.scores)
-                    log(f"  outline chunk {k}: attempt {attempt}: {e}; asking again for those")
+                    detail(f"  {outline_name(k, len(chunks))}: attempt {attempt}: {e}; asking again for those")
                     continue
                 except (MapHubError, anthropic.APIError, json.JSONDecodeError,
                         subprocess.TimeoutExpired) as e:
-                    log(f"  outline chunk {k}: attempt {attempt} failed: {e}")
+                    detail(f"  {outline_name(k, len(chunks))}: attempt {attempt} failed: {e}")
                     request_failed(e)
                     continue
                 request_ok()
@@ -1224,12 +1419,12 @@ def score_outlines(cfg, via, chunks, portfolios, out_dir) -> None:
                            {"ids": [p["id"] for p in chunk], "participants": who, "scores": scores,
                             "usage": usage, "seconds": round(seconds, 1), "model": cfg["model"],
                             "prompt": cfg["prompt"], "via": via, "api_equivalent_usd": round(cost, 6) if cost else None})
-                log(f"  outline chunk {k + 1}/{len(chunks)}: {len(scores)} papers x {len(who)} "
+                detail(f"  {outline_name(k, len(chunks))}: {len(scores)} papers x {len(who)} "
                     f"participants, {seconds:.0f} s, tokens in {usage['input']} + cache write "
                     f"{usage['cache_write']} + cache read {usage['cache_read']}, out {usage['output']}")
                 break
             else:
-                log(f"  outline chunk {k}: no usable reply after {SCORE_ATTEMPTS} tries; left for the next run")
+                log(f"  {outline_name(k, len(chunks))}: no usable reply after {SCORE_ATTEMPTS} tries; left for the next run")
 
 
 def outline_done(out_dir: Path, k: int, chunk: list[dict], who: list[str], prompt: str | None = None) -> bool:
@@ -1249,7 +1444,7 @@ def score_batch(client, cfg, jobs, prefixes, portfolios, scores_dir, state: Path
     for round_ in range(1, BATCH_ROUNDS + 1):
         if state.exists():
             batch_id = read_json(state)["batch_id"]
-            log(f"Resuming batch {batch_id}")
+            detail(f"Resuming batch {batch_id}")
         else:
             pending = [cid for cid, (who, k, _) in by_id.items()
                        if not (scores_dir / who / f"chunk{k}.json").exists()]
@@ -1262,10 +1457,10 @@ def score_batch(client, cfg, jobs, prefixes, portfolios, scores_dir, state: Path
             ]
             batch_id = client.messages.batches.create(requests=requests).id
             write_json(state, {"batch_id": batch_id})
-            log(f"Round {round_}: submitted batch {batch_id} with {len(requests)} requests")
+            detail(f"Round {round_}: submitted batch {batch_id} with {len(requests)} requests")
         while (batch := client.messages.batches.retrieve(batch_id)).processing_status != "ended":
             c = batch.request_counts
-            log(f"  batch {batch_id}: {c.processing} processing, {c.succeeded} succeeded, "
+            detail(f"  batch {batch_id}: {c.processing} processing, {c.succeeded} succeeded, "
                 f"{c.errored} errored")
             time.sleep(BATCH_POLL)
         for result in client.messages.batches.results(batch_id):
@@ -1273,13 +1468,13 @@ def score_batch(client, cfg, jobs, prefixes, portfolios, scores_dir, state: Path
                 continue
             who, k, chunk = by_id[result.custom_id]
             if result.result.type != "succeeded":
-                log(f"  {who} chunk {k}: {result.result.type}")
+                detail(f"  {who} chunk {k + 1}: {result.result.type}")
                 continue
             message = result.result.message
             try:
                 scores = parse_scores(message, chunk)
             except MapHubError as e:
-                log(f"  {who} chunk {k}: {e}")
+                detail(f"  {who} chunk {k + 1}: {e}")
                 continue
             write_json(
                 scores_dir / who / f"chunk{k}.json",
@@ -1467,16 +1662,32 @@ def datacite_lacks(ids: list[str]) -> list[str]:
     """The IDs whose arXiv DOI (10.48550/arXiv.<ID>) DataCite has no record of.
 
     Searched in batches like the viewer, then one by one, since DataCite's
-    search index can lag behind new DOIs."""
-    found: set[str] = set()
-    for start in range(0, len(ids), DATACITE_BATCH):
-        part = ids[start : start + DATACITE_BATCH]
+    search index can lag behind new DOIs. A batch DataCite refuses (an error reply in the
+    400s: in the logs of Nov 2026, every search of more than 27 old-style IDs) is split in
+    halves, down to the one-by-one lookups, as the viewer falls back to them; any other
+    failure (DataCite down, the network) ends the search."""
+
+    def search(part: list[str]) -> set[str]:
         query = urllib.parse.urlencode({
             # Old IDs (astro-ph/0601234) contain a slash, which the search syntax needs escaped.
             "query": "doi:(" + " OR ".join("10.48550/arxiv." + i.replace("/", "\\/") for i in part) + ")",
             "page[size]": len(part), "fields[dois]": "titles"})
-        for record in json.loads(http_get(f"{DATACITE_URL}?{query}"))["data"]:
-            found.add(re.sub(r"^10\.48550/arxiv\.", "", record["id"], flags=re.I))
+        try:
+            data = json.loads(http_get(f"{DATACITE_URL}?{query}"))["data"]
+        except MapHubError as e:
+            refused = isinstance(e.__cause__, urllib.error.HTTPError) and 400 <= e.__cause__.code < 500 \
+                and e.__cause__.code != 429
+            if not refused:
+                raise
+            if len(part) == 1:
+                return set()  # the lookup below settles it
+            half = len(part) // 2
+            return search(part[:half]) | search(part[half:])
+        return {re.sub(r"^10\.48550/arxiv\.", "", record["id"], flags=re.I) for record in data}
+
+    found: set[str] = set()
+    for start in range(0, len(ids), DATACITE_BATCH):
+        found |= search(ids[start : start + DATACITE_BATCH])
     lacking = []
     for pid in ids:
         if pid in found:
@@ -1510,8 +1721,11 @@ def write_meta(tables: Path, date: dt.date, ids: list[str], lookup) -> list[Path
         return []
     try:
         lacking = datacite_lacks([pid for month in todo.values() for pid in month])
-    except MapHubError as e:
-        log(f"Warning: {e}; no metadata fallback written (retry with --meta-only {date})")
+    except MapHubError as e:  # the table is complete without it: one short line, and the listing goes on
+        cause = e.__cause__
+        why = f"HTTP {cause.code}" if isinstance(cause, urllib.error.HTTPError) else str(cause or e)[:100]
+        log(f"Warning: DataCite could not be searched for {date} ({why}); the viewer looks these papers up one by one.")
+        detail(f"  To write the metadata fallback later: python scorer/daily_table.py --meta-only {date}")
         return []
     if not lacking:
         return []
@@ -1528,26 +1742,127 @@ def write_meta(tables: Path, date: dt.date, ids: list[str], lookup) -> list[Path
     return written
 
 
-def meta_only(args) -> int:
-    """Write a date's metadata fallback from its existing table, without scoring:
-    for tables written before the fallback existed, or when DataCite was down."""
-    date = args.date
-    yymms = index_dates(args.tables).get(date.isoformat())
-    if not yymms:
-        raise MapHubError(f"no table for {date}")
-    ids = [full_id(yymm, row) for yymm in yymms
-           for row in pq.read_table(table_path(args.tables, yymm, date)).column("id").to_pylist()]
-    saved = args.work / date.isoformat() / "papers.json"
-    known = {p["id"]: p for p in read_json(saved)} if saved.exists() else {}
+def meta_dates(spec: str, tables: Path) -> list[dt.date]:
+    """The dates --meta-only names: dates separated by commas or spaces, ranges FIRST..LAST
+    (every listing with a table between them), and @FILE (a file of such entries, one or more
+    a line), such as the dates of a log's DataCite warnings."""
+    have = sorted(index_dates(tables))
+    dates: set[dt.date] = set()
+    for item in re.split(r"[,\s]+", spec.strip()):
+        if not item:
+            continue
+        if item.startswith("@"):
+            dates.update(meta_dates(Path(item[1:]).read_text(encoding="utf-8"), tables))
+        elif ".." in item:
+            first, last = (dt.date.fromisoformat(x) for x in item.split("..", 1))
+            dates.update(dt.date.fromisoformat(d) for d in have if first.isoformat() <= d <= last.isoformat())
+        else:
+            dates.add(dt.date.fromisoformat(item))
+    return sorted(dates)
 
-    def lookup(wanted: list[str]) -> dict[str, dict]:
-        missing = [i for i in wanted if i not in known]
-        return {**known, **(fetch_metadata(missing) if missing else {})}
 
-    paths = write_meta(args.tables, date, ids, lookup)
-    log(f"{date}: " + (", ".join(f"wrote {p}" for p in paths)
-                       or "nothing to write (DataCite has every paper, or the fallback exists)"))
-    return 0
+META_SUBJECT = "Metadata fallbacks for"  # the subject of --meta-only's commits (local_run.py pushes them)
+
+
+def meta_only(args, dates: list[dt.date]) -> int:
+    """Write the metadata fallback of each date from its existing table, without scoring:
+    for tables written before the fallback existed, or when DataCite could not be searched.
+    One line per date; a date without a table is said and skipped. In the repository's own
+    tables/, it refuses while the driver runs, and commits what it writes as a commit of its
+    own ("Metadata fallbacks for …"), which the next push (mh -p) takes along: left uncommitted,
+    the files would ride in the next table's commit."""
+    own = args.tables.resolve() == (ROOT / "tables").resolve()
+    if own:
+        import driver
+        state = driver.read_state(driver.STATUS)
+        if driver.running() or (state.get("pid") and state.get("doing") != "stopped" and driver.is_driver(state["pid"])):
+            raise MapHubError("the driver is running; stop it first (mh --stop, then mh --status until it says "
+                              "not running), run this, push with mh -p, and start the driver again")
+        if problem := tables_branch_problem():
+            raise MapHubError(problem)
+    failed = 0
+    written: dict[dt.date, list[Path]] = {}
+    # Fallbacks an earlier run wrote (or staged) but did not commit (cut off, say): write_meta skips their
+    # months now, so they are committed with this run's.
+    for date in dates if own else []:
+        spec = f":(glob)tables/**/{date.isoformat()}.meta.json"
+        left = git_out("ls-files", "--others", "--", spec).split() + \
+            git_out("diff", "--cached", "--name-only", "--diff-filter=A", "--", spec).split()  # added, commit cut off
+        if left:
+            written[date] = [ROOT / f for f in left]
+    try:
+        failed = meta_dates_written(args, dates, written)
+    finally:
+        if own and written:  # what was written is committed even when a later date fails
+            commit_meta(written)
+    return 1 if failed else 0
+
+
+def git_out(*args: str) -> str:
+    done = subprocess.run(["git", "-C", str(ROOT), *args], capture_output=True, text=True)
+    if done.returncode != 0:
+        raise MapHubError(f"git {args[0]}: {done.stderr.strip() or done.stdout.strip()}")
+    return done.stdout
+
+
+CODE_BRANCH = "main"  # the branch the code is developed on, which leaves tables/ out (local_run.py, CODE)
+
+
+def tables_branch_problem() -> str | None:
+    """Why tables cannot be committed here, or None: on main, whose .gitignore leaves tables/
+    out, they belong on the tables branch (RUNNING.md, Setting up a copy, step 1)."""
+    branch = subprocess.run(["git", "-C", str(ROOT), "branch", "--show-current"], capture_output=True, text=True).stdout.strip()
+    ignored = subprocess.run(["git", "-C", str(ROOT), "check-ignore", "-q", "--no-index", "tables/index.json"]).returncode == 0
+    if branch == CODE_BRANCH and ignored:
+        return (f"this is {CODE_BRANCH}, which leaves tables/ out; run on the tables branch "
+                "(`git switch tables`, or `git switch -c tables` in a new copy: RUNNING.md, Setting up a copy, step 1)")
+    return None
+
+
+def meta_dates_written(args, dates: list[dt.date], written: dict[dt.date, list[Path]]) -> int:
+    """meta_only's loop: the fallback of each date, added to `written`; the number of dates without a table."""
+    failed = 0
+    for date in dates:
+        yymms = index_dates(args.tables).get(date.isoformat())
+        if not yymms:
+            log(f"{date}: no table; skipped")
+            failed += 1
+            continue
+        ids = [full_id(yymm, row) for yymm in yymms
+               for row in pq.read_table(table_path(args.tables, yymm, date)).column("id").to_pylist()]
+        saved = args.work / date.isoformat() / "papers.json"
+        known = {p["id"]: p for p in read_json(saved)} if saved.exists() else {}
+
+        def lookup(wanted: list[str]) -> dict[str, dict]:
+            missing = [i for i in wanted if i not in known]
+            return {**known, **(fetch_metadata(missing) if missing else {})}
+
+        paths = write_meta(args.tables, date, ids, lookup)
+        if paths:
+            written.setdefault(date, []).extend(paths)
+        log(f"{date}: " + (", ".join(f"wrote {p}" for p in paths)
+                           or "nothing written (DataCite has every paper, the fallback exists, or the search failed)"))
+    return failed
+
+
+def commit_meta(written: dict[dt.date, list[Path]]) -> None:
+    """Commit the metadata fallbacks --meta-only wrote, and nothing else, as one commit."""
+    days = sorted(written)
+    n = sum(len(read_json(p)) for paths in written.values() for p in paths)
+    span = days[0].isoformat() if len(days) == 1 else f"{len(days)} listings, {days[0]} to {days[-1]}"
+    lines = [f"{META_SUBJECT} {span}", "",
+             f"{n} papers DataCite lacks, written from the existing tables (daily_table.py --meta-only):"]
+    lines += [f"- {d}: {', '.join(p.name for p in written[d])}" for d in days]
+    try:
+        paths = sorted({str(p.resolve().relative_to(ROOT.resolve())) for d in days for p in written[d]})
+    except ValueError as e:
+        raise MapHubError(f"a fallback outside the repository ({e}); the files are written, commit them by hand") from e
+    for command in (["add", "-f", "--", *paths], ["commit", "-q", "-m", "\n".join(lines), "--", *paths]):
+        try:
+            git_out(*command)
+        except MapHubError as e:
+            raise MapHubError(f"{e}; the files are written, commit them by hand") from e
+    log(f"Committed locally: {lines[0]}; push with mh -p")
 
 
 def write_empty_table(tables: Path, date: dt.date, columns: list[str]) -> Path:
@@ -1664,6 +1979,16 @@ def publish_roster(tables: Path, portfolios: Path) -> None:
     })
 
 
+LAST_USAGE: dict = {}  # summarize's totals, for the run's summary (write_summary)
+
+
+def write_summary(date: dt.date, papers: int, empty: bool = False) -> None:
+    """What the table just written took, as JSON in MAPHUB_SUMMARY when set (local_run.py
+    sets it, for its one line per listing in the brief log)."""
+    if path := os.environ.get("MAPHUB_SUMMARY"):
+        write_json(Path(path), {"date": date.isoformat(), "papers": papers, "empty": empty, **LAST_USAGE})
+
+
 def summarize(files: list[Path]) -> None:
     """Usage of the saved requests behind this run's table (both passes, when there are
     two). Files left in the work dir by a run under another prompt version are not counted."""
@@ -1679,7 +2004,9 @@ def summarize(files: list[Path]) -> None:
         seconds += saved["seconds"] or 0
         if saved.get("api_equivalent_usd") is not None:
             equivalent = (equivalent or 0) + saved["api_equivalent_usd"]
-    log(f"Usage: {requests} requests, {seconds:.0f} s of request time; tokens in "
+    LAST_USAGE.clear()
+    LAST_USAGE.update({"requests": requests, "seconds": round(seconds), "tokens": total})
+    detail(f"Usage: {requests} requests, {seconds:.0f} s of request time; tokens in "
         f"{total['input']} + cache write {total['cache_write']} + cache read "
         f"{total['cache_read']}, out {total['output']}"
         + ("" if equivalent is None else
@@ -1730,7 +2057,6 @@ def write_commit_message(args, date, cfg, via, columns, n_papers, n_skipped, n_m
     path = args.work / "commit-message.txt"
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text("\n".join(lines) + "\n", encoding="utf-8")
-    log(f"Commit message written to {path}")
 
 
 def write_late_message(args, cfg, via, columns, by_listing: dict[str, list[dict]], n_skipped: int,
@@ -1771,8 +2097,10 @@ def main() -> int:
                          "status active only)")
     ap.add_argument("--rebuild-top", action="store_true",
                     help="rebuild the top-paper summaries of complete years (tables/top/) from the tables present, without scoring")
-    ap.add_argument("--meta-only", action="store_true",
-                    help="write a date's metadata fallback (papers DataCite lacks) from its table, without scoring")
+    ap.add_argument("--meta-only", nargs="?", const="", metavar="DATES",
+                    help="write the metadata fallback (papers DataCite lacks) from existing tables, without scoring: "
+                         "for the date given, or for DATES (2005-09-27,2005-09-28; a range 1992-04-15..2007-04-02; "
+                         "@FILE, a file of dates)")
     ap.add_argument("--via", choices=["api", "claude-code"],
                     help="how to send requests (default: claude-code)")
     ap.add_argument("--model", help="with --test: try this model instead of the configured one")
@@ -1812,18 +2140,23 @@ def main() -> int:
                               "Claude Code serves only the columns listed there")
         skipped = [w for w in own if w not in portfolios]
         if skipped:
-            log(f"Not serving {', '.join(skipped)}: not scored on this listing (status), or no portfolio")
+            detail(f"Not serving {', '.join(skipped)}: not scored on this listing (status), or no portfolio")
         kept = {w: portfolios[w] for w in own if w in portfolios}
         if not kept:
             raise MapHubError("none of MAPHUB_OWN_PARTICIPANTS can be served")
         return kept
 
-    if args.meta_only and args.date is None:
-        ap.error("--meta-only needs a date")
+    if args.meta_only is not None:
+        if args.date is None and not args.meta_only:
+            ap.error("--meta-only needs a date, or a list or range of dates")
+        try:
+            meta_days = sorted({*([args.date] if args.date else []), *meta_dates(args.meta_only, args.tables)})
+        except (OSError, ValueError) as e:
+            ap.error(f"--meta-only: {e}")
 
     try:
-        if args.meta_only:
-            return meta_only(args)
+        if args.meta_only is not None:
+            return meta_only(args, meta_days)
         # The configuration log takes effect by run date, so a rerun of an old
         # listing uses, and is attributed to, the configuration of its run.
         cfg = load_config(args.config, dt.datetime.now(EASTERN).date())
@@ -1840,7 +2173,7 @@ def main() -> int:
             # Runs are repeated in case arXiv announces late; a listing already in
             # the tables is not scored again (an explicit date forces a rescore).
             if date.isoformat() in index_dates(args.tables):
-                log(f"The current listing ({date}) is already scored; nothing to do.")
+                detail(f"The current listing ({date}) is already scored; nothing to do.")
                 return 0
         dupes: set[str] = set()
         if args.late:
@@ -1858,7 +2191,7 @@ def main() -> int:
             check_portfolios(args.portfolios)
             dupes = scored_elsewhere(args.tables, date, papers)
             if dupes:
-                log(f"Skipping {len(dupes)} papers already scored on another date: {', '.join(sorted(dupes)[:5])}"
+                detail(f"Skipping {len(dupes)} papers already scored on another date: {', '.join(sorted(dupes)[:5])}"
                     + (" ..." if len(dupes) > 5 else ""))
                 papers = [p for p in papers if p["id"] not in dupes]
             if not papers and announced and not past:
@@ -1870,11 +2203,12 @@ def main() -> int:
                 # paper left, or a current listing arXiv did not announce (a holiday).
                 columns = sorted(load_participants(args.portfolios, legacy=legacy))
                 path = write_empty_table(args.tables, date, columns)
-                log(f"{date}: nothing to score; wrote an empty table, {path}")
+                detail(f"{date}: nothing to score; wrote an empty table, {path}")
                 publish_roster(args.tables, args.portfolios)
                 write_commit_message(args, date, cfg, via, columns, 0, len(dupes),
                                      note=None if announced or past else
                                      "No announcement: arXiv listed no new submissions (a holiday)")
+                write_summary(date, 0, empty=True)
                 return 0
         tables = args.tables
         if args.test:
@@ -1900,7 +2234,7 @@ def main() -> int:
             raise MapHubError(f"prompt {cfg['prompt']} scores in two passes; --batch is not supported")
         chunks = make_chunks(papers, cfg["chunk_size"])
         scores_dir = day_dir / "scores"
-        log(f"{date}: {len(papers)} papers in {len(chunks)} chunks, {len(portfolios)} "
+        detail(f"{date}: {len(papers)} papers in {len(chunks)} chunks, {len(portfolios)} "
             f"participants; {cfg['model']}, effort {cfg.get('effort')}, prompt {cfg['prompt']}; "
             f"via {via}" + ("" if cfg["cache"] or via != "api" or two_pass else "; no caching (one participant)"))
 
@@ -1926,7 +2260,7 @@ def main() -> int:
         if two_pass:
             # Pass 1: every paper against the joint outline, one request per chunk.
             outline_dir = scores_dir / "outline"
-            log(f"Outline pass: {len(chunks)} requests, all participants at once")
+            detail(f"Outline pass: {len(chunks)} requests, all participants at once")
             score_outlines(cfg, via, chunks, portfolios, outline_dir)
             left = [k for k, c in enumerate(chunks) if not outline_done(outline_dir, k, c, list(portfolios), cfg["prompt"])]
             if left:
@@ -1945,8 +2279,8 @@ def main() -> int:
                 mine = [p for p in papers if coarse[p["id"]][who] >= threshold]
                 promoted[who] = len(mine)
                 full_chunks[who] = make_chunks(mine, cfg["chunk_size"]) if mine else []
-            log(f"Full pass: outline scores of {threshold} or more, "
-                + ", ".join(f"{w} {n}" for w, n in promoted.items()) + " papers")
+            detail(f"Full pass, papers with an outline score of {threshold} or more: "
+                   + ", ".join(f"{w}: {n}" for w, n in promoted.items()))
             for who in portfolios:
                 jobs = [(who, k, c) for k, c in enumerate(full_chunks[who]) if not done(full_dir, who, k, c)]
                 run_jobs(full_dir, jobs, [papers_prefix(prompt, c) for c in full_chunks[who]],
@@ -1967,7 +2301,7 @@ def main() -> int:
                     for who in portfolios if not done(scores_dir, who, k, chunk)]
             skipped = len(chunks) * len(portfolios) - len(jobs)
             if skipped:
-                log(f"Resuming: {skipped} requests already saved, {len(jobs)} to go")
+                detail(f"Resuming: {skipped} requests already saved, {len(jobs)} to go")
             run_jobs(scores_dir, jobs, prefixes, portfolios, cfg)
             summarize([f for who in portfolios for f in sorted((scores_dir / who).glob("chunk*.json"))])
             left = [(who, k) for k, c in enumerate(chunks) for who in portfolios if not done(scores_dir, who, k, c)]
@@ -1989,18 +2323,26 @@ def main() -> int:
             write_late_message(args, cfg, via, sorted(scores), by_listing, len(dupes), promoted)
             return 0
         for path in write_tables(tables, date, papers, scores):
-            log(f"Wrote {path}")
+            detail(f"Wrote {path}")
         meta = write_meta(tables, date, [p["id"] for p in papers],
                           lambda wanted: {p["id"]: p for p in papers})
         for path in meta:
-            log(f"Wrote {path} (papers DataCite lacks)")
+            detail(f"Wrote {path} (papers DataCite lacks)")
         publish_roster(tables, args.portfolios)
         if not args.test:
             write_commit_message(args, date, cfg, via, sorted(scores), len(papers), len(dupes),
                                  sum(len(read_json(m)) for m in meta), promoted=promoted)
+            write_summary(date, len(papers))
         return 0
     except ScoringStopped as e:
-        log(f"Stopping: {e}; the requests saved so far stay in the work dir, and a rerun resumes. No table written.")
+        # A usage limit is the driver's to report (one line, with the reset time) when it runs
+        # this; any other stop is said in every log.
+        if str(e) == LIMIT_STOP:
+            (detail if os.environ.get("MAPHUB_UNATTENDED") else log)(
+                f"Stopping: {e}; the requests saved so far stay in the work dir, and a rerun resumes. No table written.")
+        else:  # an outage, say: every log, and mh --status's last problem
+            log(f"Error: stopped, {e}; the requests saved so far stay in the work dir, and a rerun resumes. "
+                "No table written.")
         return 2
     except MapHubError as e:
         log(f"Error: {e}")

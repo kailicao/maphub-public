@@ -2,7 +2,8 @@
 // participant's top papers over a range of days.
 //
 // URLs: <base>/ shows the latest day, <base>/YYYY-MM-DD a given day, and
-// <base>/top#p=<who>&from=<date>&to=<date>&n=<n> the top papers. The page
+// <base>/top#p=<who>&from=<date>&to=<date>&n=<n> the top papers, with
+// &id=<arXiv ID> for one paper's scores, looked up in its ID month's tables. The page
 // reads <base>/tables/index.json (which days exist and their Parquet files)
 // and the day's Parquet files. Titles, authors and primary categories come from
 // DataCite, which holds the metadata of arXiv's DOIs (10.48550/arXiv.<ID>);
@@ -30,6 +31,10 @@ const SEARCH_BATCH = 100; // DOIs per DataCite search, to keep URLs short
 
 const TOP_N = 50;      // papers shown on the top-papers page unless the URL asks for more or fewer
 const TOP_MAX = 500;   // its default range is the past calendar month, up to the latest table
+// "Open in ADS" searches ADS for the shown papers by arXiv ID, at most ADS_BATCH per link
+// (about 3.5 kB of URL), so a long list gets several links.
+const ADS_SEARCH = "https://ui.adsabs.harvard.edu/search/";
+const ADS_BATCH = 100;
 
 const $ = (id) => document.getElementById(id);
 // <base>/ is the latest day, <base>/YYYY-MM-DD a given day, <base>/top the top-papers page.
@@ -558,13 +563,14 @@ function wireCalendar(dates, current, go) {
 // the scores of any other participants chosen for comparison. Only the papers
 // shown get titles from DataCite, so a long range stays quick.
 
-function topHash({ who, also, from, to, n }) {
+function topHash({ who, also, from, to, n, id }) {
   const params = new URLSearchParams();
   if (who) params.set("p", who);
   if (also?.length) params.set("also", also.join(","));
   if (from) params.set("from", from);
   if (to) params.set("to", to);
   if (n) params.set("n", String(n));
+  if (id) params.set("id", id);
   return params.toString();
 }
 
@@ -582,7 +588,7 @@ function readTopHash(dates) {
   const from = isDate(params.get("from")) ? params.get("from") : monthBefore(to);
   const n = Math.min(TOP_MAX, Math.max(1, parseInt(params.get("n"), 10) || TOP_N));
   const also = (params.get("also") ?? "").split(",").filter(Boolean);
-  return { who: params.get("p"), also, from, to, n };
+  return { who: params.get("p"), also, from, to, n, id: params.get("id")?.trim() || null };
 }
 
 // Every visible participant who has a column in the latest table with papers, active ones first.
@@ -619,9 +625,28 @@ async function mainTop(files, dates) {
     isActive(who) ? who : `${who} (inactive)`);
   const pick = el("select", { id: "top-who", "aria-label": "Participant" },
     el("option", { value: "", disabled: true, selected: !query.who }, "Choose a participant"), ...people.map(option));
-  const dateBox = (id, value, label) => el("input", { id, type: "date", value, min: dates[0], max: dates.at(-1), "aria-label": label });
+  // No min or max on the boxes: a whole year's range may reach past the tables (a link to the
+  // current year keeps growing), and the list reads only the dates that have tables.
+  const dateBox = (id, value, label) => el("input", { id, type: "date", value, "aria-label": label });
   const from = dateBox("top-from", query.from, "First listing date");
   const to = dateBox("top-to", query.to, "Last listing date");
+  // A year sets the range to that whole year, newest first; it shows as chosen when the range is one.
+  const [firstDate, lastDate] = [dates[0], dates.at(-1)];
+  const yearRange = (y) => [`${y}-01-01`, `${y}-12-31`];
+  const firstYear = Number(firstDate.slice(0, 4)), lastYear = Number(lastDate.slice(0, 4));
+  const years = Array.from({ length: lastYear - firstYear + 1 }, (_, k) => lastYear - k);
+  const isYear = (y) => query.from === `${y}-01-01` && query.to === `${y}-12-31`;
+  const shownYear = years.find(isYear);
+  const year = el("select", { id: "top-year", "aria-label": "A whole year" },
+    el("option", { value: "", selected: !shownYear }, "Choose a year"),
+    ...years.map((y) => el("option", { value: String(y), selected: y === shownYear }, String(y))));
+  year.addEventListener("change", () => {
+    if (!year.value) return;
+    [from.value, to.value] = yearRange(Number(year.value));
+    if (form.requestSubmit) form.requestSubmit(); // older Safari lacks requestSubmit
+    else form.dispatchEvent(new Event("submit", { cancelable: true }));
+  });
+  for (const box of [from, to]) box.addEventListener("input", () => { year.value = ""; });
   const count = el("input", { id: "top-n", type: "number", min: 1, max: TOP_MAX, value: query.n, "aria-label": "Number of papers" });
   // Other participants whose scores are shown beside, for the same papers.
   const others = people.map((who) => el("label", { class: "also-who" },
@@ -636,6 +661,7 @@ async function mainTop(files, dates) {
   syncAlso();
   const form = el("form", { class: "top-form" },
     el("label", {}, "Participant ", pick),
+    el("label", {}, "Year ", year),
     el("label", {}, "From ", from),
     el("label", {}, "to ", to),
     el("label", {}, "Top ", count),
@@ -646,10 +672,28 @@ async function mainTop(files, dates) {
     let [f, t] = [from.value, to.value];
     if (f && t && f > t) [f, t] = [t, f];
     const also = others.map((l) => l.querySelector("input")).filter((b) => b.checked && !b.disabled).map((b) => b.value);
-    location.hash = topHash({ who: pick.value, also, from: f, to: t, n: count.value });
+    location.hash = topHash({ who: pick.value, also, from: f, to: t, n: count.value, id: query.id });
   });
   addEventListener("hashchange", () => location.reload());
   $("status").before(form);
+
+  // The lookup: one paper's scores for every participant, kept in the URL as &id=.
+  const idBox = el("input", { id: "lookup-id", type: "text", value: query.id ?? "", placeholder: "2405.05188",
+    size: 18, autocomplete: "off", spellcheck: false, "aria-label": "arXiv ID" });
+  const lookupForm = el("form", { class: "top-form lookup-form" },
+    el("label", {}, "Look up an arXiv ID ", idBox),
+    el("button", { type: "submit" }, "Look up"));
+  lookupForm.addEventListener("submit", (e) => {
+    e.preventDefault();
+    const params = new URLSearchParams(location.hash.slice(1));
+    const id = idBox.value.trim();
+    if (id) params.set("id", id); else params.delete("id");
+    // replaceState fires no hashchange, so the top list is not read again for a lookup.
+    history.replaceState(null, "", "#" + params.toString());
+    lookupPaper(id, files, dates);
+  });
+  $("status").before(lookupForm, el("div", { id: "lookup", class: "lookup", "aria-live": "polite" }));
+  if (query.id) lookupPaper(query.id, files, dates); // runs beside the top list, in its own box
 
   if (!query.who) {
     $("status").textContent = "Choose a participant to see their highest-scored papers over a range of listing dates.";
@@ -750,8 +794,158 @@ function renderTop(query, range, total, papers) {
     "A listing date opens that day's heatmap.";
   const missing = papers.filter((p) => p.missing).length;
   if (missing) status.append(` ${missing} titles could not be loaded; their arXiv links still work.`);
+
+  // The list as shown, to take elsewhere: ADS searches by arXiv ID, and a CSV file.
+  const batches = [];
+  for (let i = 0; i < papers.length; i += ADS_BATCH) batches.push(papers.slice(i, i + ADS_BATCH));
+  const adsLink = (part, k) => el("a", { class: "export", href: adsUrl(part.map((p) => p.id)), target: "_blank", rel: "noopener",
+    title: "Opens these papers as a list in ADS, the NASA Astrophysics Data System, in ADS's own order" },
+    batches.length > 1 ? `Open in ADS, ${k * ADS_BATCH + 1}–${k * ADS_BATCH + part.length}` : "Open in ADS");
+  $("top-export")?.remove();
+  $("legend").before(el("div", { id: "top-export", class: "top-export" },
+    ...batches.map(adsLink),
+    el("button", { type: "button", class: "export", title: "Download this list as a CSV file: arXiv ID, title, listing date, and each shown participant's score",
+      onclick: () => downloadCsv(query, papers) }, "CSV"),
+    batches.length > 1 ? el("span", { class: "note" }, `Each ADS link takes ${ADS_BATCH} papers, to keep its address short enough for browsers.`) : null));
   paintLegend();
   $("legend").hidden = $("scroll").hidden = false;
+}
+
+// An ADS search for the given arXiv IDs: identifier:("arXiv:2405.05188" OR …).
+function adsUrl(ids) {
+  return ADS_SEARCH + "q=" + encodeURIComponent(`identifier:(${ids.map((id) => `"arXiv:${id}"`).join(" OR ")})`);
+}
+
+// The top list as shown, as a CSV file: one row per paper, a column per shown participant.
+function downloadCsv(query, papers) {
+  const cell = (v) => {
+    let s = v == null ? "" : String(v);
+    if (/^[=+\-@]/.test(s)) s = "'" + s; // so that a spreadsheet does not run a title as a formula
+    return /[",\r\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+  };
+  const lines = [["arXiv ID", "Title", "Listing date", query.who, ...query.also],
+    ...papers.map((p) => [p.id, p.missing ? "" : p.title, p.date, p.score, ...query.also.map((w) => p.others[w])])];
+  const text = lines.map((line) => line.map(cell).join(",")).join("\r\n") + "\r\n";
+  const url = URL.createObjectURL(new Blob(["\uFEFF" + text], { type: "text/csv;charset=utf-8" }));
+  const link = el("a", { href: url, download: `maphub-top-${query.who}-${query.from}-to-${query.to}.csv` });
+  document.body.append(link);
+  link.click();
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+// ---------------------------------------------------------------- lookup by arXiv ID
+
+// A typed arXiv ID (with or without "arXiv:", a version, or an arxiv.org address) ->
+// {id, yymm, row}: the ID as the tables write it, its ID-month folder, and the row's
+// stored id ([Table format] in RESULTS.md). New IDs have 4 digits from 0704 to 1412
+// and 5 from 1501 (2405.05188 -> 2405, "05188"); old ones run to 0703 and keep the
+// archive (astro-ph/0202358 -> 0202, "astro-ph_358"; a subject class such as math.GT/
+// is dropped, as arXiv's own old IDs do). null when the text is not an arXiv ID.
+function parseArxivId(text) {
+  const t = text.trim()
+    .replace(/^(?:https?:\/\/)?(?:www\.|export\.)?arxiv\.org\/(?:abs|pdf)\//i, "")
+    .replace(/^arxiv:\s*/i, "").replace(/\.pdf$/i, "").replace(/v\d+$/i, "");
+  const fresh = t.match(/^(\d{2})(\d{2})\.(\d{4,5})$/);
+  if (fresh) {
+    const [, yy, mm, num] = fresh;
+    const yymm = yy + mm;
+    if (mm < "01" || mm > "12" || yy >= "91" || yymm < "0704") return null;
+    if (num.length !== (yymm >= "1501" ? 5 : 4)) return null;
+    return { id: `${yymm}.${num}`, yymm, row: num };
+  }
+  const old = t.match(/^([a-z][a-z-]*)(?:\.[a-z]{2})?\/(\d{2})(\d{2})(\d{3})$/i);
+  if (old) {
+    const [, archive, yy, mm, num] = old;
+    const yymm = yy + mm;
+    if (mm < "01" || mm > "12" || (yy < "91" && yymm > "0703")) return null;
+    const a = archive.toLowerCase();
+    return { id: `${a}/${yymm}${num}`, yymm, row: `${a}_${num}` };
+  }
+  return null;
+}
+
+// One paper's scores for every participant. Each paper is in exactly one table, filed by
+// its ID month, so only that month's folder is read (its files from index.json), and the
+// reading stops at the table that holds it. Tables keep every scored paper, whatever its
+// scores, so a paper missing from its month's tables was not scored.
+async function lookupPaper(text, files, dates) {
+  const box = $("lookup");
+  const clear = el("button", { type: "button", class: "clear", onclick: () => {
+    const params = new URLSearchParams(location.hash.slice(1));
+    params.delete("id");
+    history.replaceState(null, "", "#" + params.toString()); // no reload of the top list
+    $("lookup-id").value = "";
+    box.replaceChildren();
+  } }, "Clear");
+  const say = (message) => box.replaceChildren(el("p", { class: "status" }, message, clear));
+  if (!text) return box.replaceChildren();
+  const paper = parseArxivId(text);
+  if (!paper) return say(`“${text}” is not an arXiv ID; type one such as 2405.05188 or astro-ph/0202358.`);
+  const month = new Date(Date.UTC(yearOfMonth(paper.yymm), Number(paper.yymm.slice(2)) - 1, 1))
+    .toLocaleDateString("en-US", { month: "long", year: "numeric", timeZone: "UTC" });
+  const jobs = Object.entries(files)
+    .flatMap(([date, list]) => list.filter((f) => f.split("/")[1] === paper.yymm).map((file) => ({ date, file })))
+    .sort((a, b) => a.date.localeCompare(b.date));
+  if (!jobs.length) {
+    return say(`${paper.id} is not in the tables: they hold no paper numbered in ${month} ` +
+      `(the tables cover the listings from ${shortDate(dates[0])} to ${shortDate(dates.at(-1))}).`);
+  }
+  box.replaceChildren(el("p", { class: "status" }, `Looking up ${paper.id} in the ${jobs.length} tables of ${month}'s IDs…`));
+  let found = null;
+  try {
+    const queue = [...jobs];
+    const worker = async () => {
+      for (let job; !found && (job = queue.shift());) {
+        const { yymm, rows } = await readTable(job.file);
+        const row = rows.find((r) => r.id === paper.row);
+        if (row) found = { ...job, yymm, row };
+      }
+    };
+    await Promise.all(Array.from({ length: 6 }, worker));
+  } catch (e) {
+    return say(`Could not look up ${paper.id} (${e.message}).`);
+  }
+  if (!found) {
+    const listings = listingsOn(dates.at(-1));
+    const monthEnd = new Date(Date.UTC(yearOfMonth(paper.yymm), Number(paper.yymm.slice(2)), 0)).toISOString().slice(0, 10);
+    return say(`${paper.id} is not in the tables: it was not scored. The tables keep every scored paper, whatever its ` +
+      `scores, and none of the ${jobs.length} tables of ${month}'s IDs holds it. MapHub scores the new submissions` +
+      `${listings ? ` of ${listings}` : ""} by primary category, so a paper filed under another category, a cross-list ` +
+      "included, is not in them." + (monthEnd > dates.at(-1)
+        ? ` A paper announced after the latest table (${shortDate(dates.at(-1))}) appears once its listing is scored.` : ""));
+  }
+
+  const info = await describe([{ id: paper.id, file: found.file, yymm: found.yymm }]);
+  const p = { id: paper.id, missing: !info[paper.id], ...(info[paper.id] ?? UNAVAILABLE) };
+  const score = (w) => (found.row[w] == null ? null : Number(found.row[w]));
+  const people = byDesc(Object.keys(found.row).filter((k) => k !== "id" && !roster.hidden.includes(k)), score,
+    (a, b) => (isActive(b) - isActive(a)) || a.localeCompare(b));
+  const heatmap = `${BASE}${found.date}#paper=${encodeURIComponent(paper.id)}`;
+  const table = el("table", { class: "top lookup-table" },
+    el("thead", {}, el("tr", {},
+      el("th", { scope: "col", class: "id-head" }, "arXiv"),
+      el("th", { scope: "col" }, "Paper"),
+      el("th", { scope: "col", class: "when" }, "Listing"),
+      ...people.map((w) => el("th", { scope: "col", class: "who" + (isActive(w) ? "" : " inactive") }, el("span", {}, w))))),
+    el("tbody", {}, el("tr", {},
+      el("td", { class: "id" }, el("a", { href: `https://arxiv.org/abs/${p.id}`, target: "_blank", rel: "noopener" }, p.id)),
+      el("td", { class: "paper" },
+        el("span", { class: "title" }, p.title),
+        el("div", { class: "authors" },
+          el("a", { class: "id-inline", href: `https://arxiv.org/abs/${p.id}`, target: "_blank", rel: "noopener" }, p.id),
+          el("span", { class: "byline" }, ...byline(p)))),
+      el("td", { class: "when" }, el("a", { href: heatmap, title: `The heatmap for ${found.date}, with this paper selected` }, shortDate(found.date))),
+      ...people.map((w) => {
+        const s = score(w);
+        if (s == null) return el("td", { class: "cell missing", title: `${w}: no score (not scored for this listing)` }, "·");
+        const c = scoreColor(s);
+        return el("td", { class: "cell", style: `background:${c.bg};color:${c.fg}`, title: `${w}: ${s}` }, String(s));
+      }))));
+  box.replaceChildren(
+    el("p", { class: "status" }, `${paper.id}, listed ${shortDate(found.date)}: its scores for each participant, highest first. ` +
+      "The listing date opens that day's heatmap with the paper selected.", clear),
+    el("div", { class: "scroll" }, table));
 }
 
 function fail(message, error = true) {
@@ -759,6 +953,16 @@ function fail(message, error = true) {
   status.textContent = message;
   status.classList.toggle("error", error);
   $("legend").hidden = $("scroll").hidden = true;
+}
+
+const shortDate = (iso) => new Date(`${iso}T12:00:00Z`).toLocaleDateString("en-US",
+  { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" });
+
+// An ID month (YYMM, as a string or a number such as 2 for 0002) -> its year: 91 to 99
+// are the 1990s.
+function yearOfMonth(yymm) {
+  const yy = Number(String(yymm).padStart(4, "0").slice(0, 2));
+  return (yy >= 91 ? 1900 : 2000) + yy;
 }
 
 const longDate = (iso) => new Date(`${iso}T12:00:00Z`).toLocaleDateString("en-US",
@@ -771,11 +975,9 @@ const longDate = (iso) => new Date(`${iso}T12:00:00Z`).toLocaleDateString("en-US
 // -> date -> table files.
 function tableFiles(index) {
   const files = {};
-  const yearOf = (yymm) => (Number(String(yymm).padStart(4, "0").slice(0, 2)) >= 91 ? 1900 : 2000) +
-    Number(String(yymm).padStart(4, "0").slice(0, 2));
-  const iso = (yymm, day) => `${yearOf(yymm)}-${String(yymm).padStart(4, "0").slice(2)}-${String(day).padStart(2, "0")}`;
+  const iso = (yymm, day) => `${yearOfMonth(yymm)}-${String(yymm).padStart(4, "0").slice(2)}-${String(day).padStart(2, "0")}`;
   for (const [yymm, entries] of Object.entries(index)) {
-    const year = yearOf(yymm);
+    const year = yearOfMonth(yymm);
     const start = 1991 + 3 * Math.floor((year - 1991) / 3);
     const dates = entries.flatMap((e) => typeof e === "number" ? [iso(yymm, e)]
       : Array.isArray(e) ? e.slice(1).map((d) => iso(e[0], d)) : [e]);
